@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Application Gap Analysis - AppADay 111</title>
+<meta name="description" content="Paste a resume and a job description. Claude extracts the real requirements, checks your resume against every one, and hands back a match score, a gap grid, structural flags, and interview-fit questions.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f5f0e8'/%3E%3Ctext x='32' y='47' font-family='Georgia,serif' font-size='40' text-anchor='middle' fill='%230f0e0c'%3EA%3C/text%3E%3Crect x='16' y='51' width='32' height='4' fill='%23c8401a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f0e0c;
+    --paper: #f5f0e8;
+    --paper-dark: #ede8df;
+    --accent: #c8401a;
+    --accent-dim: rgba(200, 64, 26, 0.12);
+    --accent-mid: rgba(200, 64, 26, 0.35);
+    --gold: #b8860b;
+    --green: #2f6b3a;
+    --green-dim: rgba(47, 107, 58, 0.12);
+    --muted: #7a7468;
+    --rule: rgba(15,14,12,0.14);
+    --card-bg: rgba(255,253,248,0.92);
+    --shadow: 0 2px 16px rgba(15,14,12,0.08), 0 1px 3px rgba(15,14,12,0.06);
+    --shadow-hover: 0 8px 32px rgba(15,14,12,0.14), 0 2px 8px rgba(15,14,12,0.08);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background-color: var(--paper);
+    color: var(--ink);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    line-height: 1.5;
+  }
+
+  a { color: inherit; }
+
+  header {
+    padding: 32px 20px 24px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .brand a.back {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+
+  .brand a.back:hover { color: var(--accent); }
+
+  .brand h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(22px, 5vw, 30px);
+    line-height: 1.15;
+  }
+
+  .brand .num {
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+    margin-right: 8px;
+  }
+
+  .brand p.tag {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 46ch;
+  }
+
+  .gear-btn {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--rule);
+    background: var(--card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    color: var(--ink);
+  }
+
+  .gear-btn:hover { border-color: var(--accent-mid); color: var(--accent); }
+
+  main {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+  }
+
+  .key-banner {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-mid);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--ink);
+    margin-bottom: 20px;
+    display: none;
+  }
+
+  .key-banner.show { display: block; }
+
+  .field-group { margin-bottom: 18px; }
+
+  label.field-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  label.field-label .count {
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 12px 14px;
+    resize: vertical;
+    box-shadow: var(--shadow);
+  }
+
+  textarea:focus, input[type="text"]:focus, input[type="password"]:focus {
+    outline: none;
+    border-color: var(--accent-mid);
+  }
+
+  textarea.resume, textarea.jobdesc { min-height: 160px; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  @media (min-width: 720px) {
+    .two-col { grid-template-columns: 1fr 1fr; }
+  }
+
+  .analyze-btn {
+    width: 100%;
+    padding: 15px 20px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    margin-top: 4px;
+  }
+
+  .analyze-btn:disabled {
+    background: var(--muted);
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .analyze-btn:not(:disabled):hover { box-shadow: var(--shadow-hover); }
+
+  .status-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    border: 1px solid var(--rule);
+  }
+
+  .status-banner.show { display: flex; }
+  .status-banner.loading { background: var(--card-bg); color: var(--muted); }
+  .status-banner.error { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-mid); }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--rule);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .results { margin-top: 36px; display: none; }
+  .results.show { display: block; }
+
+  .score-card {
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 28px 24px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    margin-bottom: 28px;
+  }
+
+  .score-card .score-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(48px, 12vw, 64px);
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .score-card .score-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .score-card .score-sub {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  section.block { margin-bottom: 32px; }
+
+  h2.block-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  p.block-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .gap-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .gap-row {
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .gap-row-head {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+  }
+
+  .gap-row-head .req-text {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .status-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .status-badge.met { background: var(--green-dim); color: var(--green); }
+  .status-badge.partial { background: rgba(184, 134, 11, 0.14); color: var(--gold); }
+  .status-badge.missing { background: var(--accent-dim); color: var(--accent); }
+
+  .expand-arrow {
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+
+  .gap-row.expanded .expand-arrow { transform: rotate(90deg); }
+
+  .gap-row-body {
+    display: none;
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .gap-row.expanded .gap-row-body { display: block; padding-top: 14px; }
+
+  .gap-row-body .sub-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-top: 12px;
+    margin-bottom: 4px;
+  }
+
+  .gap-row-body .sub-label:first-child { margin-top: 0; }
+
+  .gap-row-body p { font-size: 14px; }
+
+  .gap-row-body .evidence {
+    font-style: italic;
+    color: var(--muted);
+    border-left: 2px solid var(--rule);
+    padding-left: 10px;
+  }
+
+  .flag-list { display: grid; gap: 10px; }
+
+  .flag-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: flex-start;
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .flag-item.sev-medium { border-left-color: var(--gold); }
+  .flag-item.sev-low { border-left-color: var(--muted); }
+
+  .flag-item .sev-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .flag-item p { font-size: 14px; }
+
+  .fit-card {
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .fit-card ol { padding-left: 20px; display: grid; gap: 10px; }
+  .fit-card li { font-size: 14px; }
+
+  .empty-note { font-size: 13px; color: var(--muted); font-style: italic; }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15,14,12,0.5);
+    z-index: 50;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  @media (min-width: 640px) {
+    .modal-overlay { align-items: center; }
+  }
+
+  .modal {
+    background: var(--paper);
+    width: 100%;
+    max-width: 480px;
+    max-height: 90dvh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    padding: 24px 22px 28px;
+    box-shadow: var(--shadow-hover);
+  }
+
+  @media (min-width: 640px) {
+    .modal { border-radius: 16px; }
+  }
+
+  .modal h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    margin-bottom: 18px;
+  }
+
+  .modal .field-group label.simple {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .modal input[type="password"], .modal input[type="text"] {
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    padding: 11px 13px;
+    border: 1px solid var(--rule);
+    border-radius: 9px;
+    background: var(--card-bg);
+  }
+
+  .masked-key {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .radio-group { display: grid; gap: 8px; margin-top: 4px; }
+
+  .radio-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 9px;
+    background: var(--card-bg);
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .radio-option input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  textarea.strengths-input {
+    min-height: 90px;
+    font-size: 14px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .modal-actions button {
+    flex: 1;
+    padding: 13px 16px;
+    border-radius: 9px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid var(--rule);
+  }
+
+  .modal-actions .save-btn { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  .modal-actions .close-btn { background: transparent; color: var(--ink); }
+
+  .storage-error {
+    display: none;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-mid);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    margin-top: 14px;
+  }
+
+  .storage-error.show { display: block; }
+
+  footer {
+    text-align: center;
+    padding: 28px 20px 40px;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <a class="back" href="https://augustineiacopelli.github.io/appaday/">Back to AppADay</a>
+    <h1><span class="num">111</span>Application Gap Analysis</h1>
+    <p class="tag">Paste a resume and a job posting. Claude checks every requirement against your resume and shows exactly what is missing.</p>
+  </div>
+  <button class="gear-btn" id="settings-open" type="button" aria-label="Settings">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </button>
+</header>
+
+<main>
+  <div class="key-banner" id="key-banner">No API key saved yet. Open Settings to add your Anthropic API key before analyzing.</div>
+
+  <div class="two-col">
+    <div class="field-group">
+      <label class="field-label" for="resume-input">Resume <span class="count" id="resume-count">0 words</span></label>
+      <textarea id="resume-input" class="resume" placeholder="Paste your resume text here"></textarea>
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="job-input">Job Description <span class="count" id="job-count">0 words</span></label>
+      <textarea id="job-input" class="jobdesc" placeholder="Paste the job posting text here"></textarea>
+    </div>
+  </div>
+
+  <div class="field-group">
+    <label class="field-label" for="role-context">Role Context <span class="count">optional</span></label>
+    <input type="text" id="role-context" placeholder="e.g. internal transfer, career switch, referral from a colleague">
+  </div>
+
+  <button class="analyze-btn" id="analyze-btn" type="button" disabled>Analyze</button>
+
+  <div class="status-banner" id="status-banner">
+    <div class="spinner" id="status-spinner"></div>
+    <span id="status-text"></span>
+  </div>
+
+  <div class="results" id="results">
+    <div class="score-card">
+      <div class="score-num" id="score-num">0%</div>
+      <div class="score-label">Match Score</div>
+      <div class="score-sub" id="score-sub"></div>
+    </div>
+
+    <section class="block">
+      <h2 class="block-title">Requirement Gaps</h2>
+      <p class="block-desc">Tap a row to see the evidence found in your resume and a suggested rewrite.</p>
+      <div class="gap-grid" id="gap-grid"></div>
+    </section>
+
+    <section class="block">
+      <h2 class="block-title">Structural Findings</h2>
+      <p class="block-desc">Formatting or resume-structure issues an ATS or a recruiter might flag.</p>
+      <div class="flag-list" id="flag-list"></div>
+    </section>
+
+    <section class="block">
+      <h2 class="block-title">Fit Questions</h2>
+      <p class="block-desc">Questions worth preparing an answer for before the interview.</p>
+      <div class="fit-card">
+        <ol id="fit-list"></ol>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>AppADay 111 &middot; Application Gap Analysis</footer>
+
+<div class="modal-overlay" id="settings-overlay">
+  <div class="modal">
+    <h2>Settings</h2>
+
+    <div class="field-group">
+      <label class="simple" for="api-key-input">Anthropic API Key</label>
+      <input type="password" id="api-key-input" placeholder="sk-ant-...">
+      <div class="masked-key" id="masked-key-display">No key saved</div>
+    </div>
+
+    <div class="field-group">
+      <label class="simple" for="session-name-input">Session Name</label>
+      <input type="text" id="session-name-input" placeholder="e.g. Job Search - Fall 2026">
+    </div>
+
+    <div class="field-group">
+      <label class="simple">Strengths Scope</label>
+      <div class="radio-group" id="strengths-scope-group">
+        <label class="radio-option"><input type="radio" name="strengths-scope" value="none" checked> None - do not factor strengths in</label>
+        <label class="radio-option"><input type="radio" name="strengths-scope" value="top5"> Top Five</label>
+        <label class="radio-option"><input type="radio" name="strengths-scope" value="top10"> Top Ten</label>
+        <label class="radio-option"><input type="radio" name="strengths-scope" value="all34"> All Thirty Four</label>
+      </div>
+    </div>
+
+    <div class="field-group" id="strengths-list-group">
+      <label class="simple" for="strengths-list-input">Strengths List (ranked, one per line, not saved between sessions)</label>
+      <textarea id="strengths-list-input" class="strengths-input" placeholder="1. Strategic&#10;2. Achiever&#10;3. Learner ..."></textarea>
+    </div>
+
+    <div class="storage-error" id="storage-error">Local storage is unavailable in this browser, so settings will not persist between visits. Everything will still work for this session.</div>
+
+    <div class="modal-actions">
+      <button type="button" class="close-btn" id="settings-cancel">Cancel</button>
+      <button type="button" class="save-btn" id="settings-save">Save and Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var CONFIG = {
+    CLAUDE_MODEL: "claude-sonnet-5",
+    API_URL: "https://api.anthropic.com/v1/messages",
+    MAX_TOKENS_EXTRACTION: 1600,
+    MAX_TOKENS_COMPARISON: 2600,
+    STORAGE_KEY: "appaday-111-gap-analysis"
+  };
+
+  var STATE = {
+    apiKey: "",
+    sessionName: "",
+    strengthsScope: "none",
+    strengthsListRaw: "",
+    resumeText: "",
+    jobText: "",
+    roleContext: "",
+    extractionResult: null,
+    comparisonResult: null,
+    matchScore: null,
+    uiExpandedRows: {},
+    stage: "idle",
+    storageOk: true
+  };
+
+  function $(id) { return document.getElementById(id); }
+
+  function countWords(text) {
+    var trimmed = (text || "").trim();
+    if (trimmed === "") return 0;
+    return trimmed.split(/\s+/).length;
+  }
+
+  function loadSettings() {
+    try {
+      var raw = window.localStorage.getItem(CONFIG.STORAGE_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        STATE.apiKey = parsed.apiKey || "";
+        STATE.sessionName = parsed.sessionName || "";
+        STATE.strengthsScope = parsed.strengthsScope || "none";
+      }
+      STATE.storageOk = true;
+    } catch (err) {
+      STATE.storageOk = false;
+    }
+  }
+
+  function saveSettings() {
+    try {
+      var toSave = {
+        apiKey: STATE.apiKey,
+        sessionName: STATE.sessionName,
+        strengthsScope: STATE.strengthsScope
+      };
+      window.localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(toSave));
+      STATE.storageOk = true;
+    } catch (err) {
+      STATE.storageOk = false;
+    }
+    renderStorageError();
+  }
+
+  function renderStorageError() {
+    var el = $("storage-error");
+    if (STATE.storageOk) {
+      el.classList.remove("show");
+    } else {
+      el.classList.add("show");
+    }
+  }
+
+  function maskKey(key) {
+    if (!key) return "No key saved";
+    if (key.length <= 8) return "Key saved (hidden)";
+    return "Key saved: " + key.slice(0, 6) + "..." + key.slice(-4);
+  }
+
+  function renderKeyBanner() {
+    var banner = $("key-banner");
+    if (STATE.apiKey) {
+      banner.classList.remove("show");
+    } else {
+      banner.classList.add("show");
+    }
+  }
+
+  function openSettings() {
+    $("api-key-input").value = STATE.apiKey;
+    $("session-name-input").value = STATE.sessionName;
+    var radios = document.querySelectorAll('input[name="strengths-scope"]');
+    for (var i = 0; i < radios.length; i++) {
+      radios[i].checked = radios[i].value === STATE.strengthsScope;
+    }
+    $("strengths-list-input").value = STATE.strengthsListRaw;
+    $("masked-key-display").textContent = maskKey(STATE.apiKey);
+    renderStorageError();
+    $("settings-overlay").classList.add("show");
+  }
+
+  function closeSettings() {
+    $("settings-overlay").classList.remove("show");
+  }
+
+  function saveAndCloseSettings() {
+    STATE.apiKey = $("api-key-input").value.trim();
+    STATE.sessionName = $("session-name-input").value.trim();
+    var radios = document.querySelectorAll('input[name="strengths-scope"]');
+    for (var i = 0; i < radios.length; i++) {
+      if (radios[i].checked) STATE.strengthsScope = radios[i].value;
+    }
+    STATE.strengthsListRaw = $("strengths-list-input").value;
+    saveSettings();
+    renderKeyBanner();
+    closeSettings();
+  }
+
+  function updateWordCounts() {
+    STATE.resumeText = $("resume-input").value;
+    STATE.jobText = $("job-input").value;
+    $("resume-count").textContent = countWords(STATE.resumeText) + " words";
+    $("job-count").textContent = countWords(STATE.jobText) + " words";
+    validateAnalyzeButton();
+  }
+
+  function validateAnalyzeButton() {
+    var ok = STATE.resumeText.trim().length > 0 && STATE.jobText.trim().length > 0;
+    $("analyze-btn").disabled = !ok;
+  }
+
+  function stripCodeFences(text) {
+    var t = (text || "").trim();
+    t = t.replace(/^```json/i, "");
+    t = t.replace(/^```/, "");
+    t = t.replace(/```$/, "");
+    return t.trim();
+  }
+
+  function parseJsonSafe(text) {
+    var cleaned = stripCodeFences(text);
+    try {
+      return { ok: true, data: JSON.parse(cleaned) };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+
+  function callClaude(systemPrompt, userMessage, maxTokens) {
+    return fetch(CONFIG.API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": STATE.apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: CONFIG.CLAUDE_MODEL,
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMessage }]
+      })
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().then(function (t) {
+          throw new Error("API error " + res.status + ": " + t.slice(0, 200));
+        });
+      }
+      return res.json();
+    }).then(function (data) {
+      var blocks = data.content || [];
+      var textOut = "";
+      for (var i = 0; i < blocks.length; i++) {
+        if (blocks[i].type === "text") textOut += blocks[i].text;
+      }
+      return textOut;
+    });
+  }
+
+  function strengthsLimitFor(scope) {
+    if (scope === "top5") return 5;
+    if (scope === "top10") return 10;
+    if (scope === "all34") return 34;
+    return 0;
+  }
+
+  function buildStrengthsBlock() {
+    if (STATE.strengthsScope === "none") return "";
+    var limit = strengthsLimitFor(STATE.strengthsScope);
+    var lines = (STATE.strengthsListRaw || "").split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+    var trimmed = lines.slice(0, limit);
+    if (trimmed.length === 0) return "";
+    return "\n\nCandidate's ranked personal strengths (use to color tone of rewrites, do not invent requirements from this list):\n" + trimmed.join("\n");
+  }
+
+  function setStage(stage, message) {
+    STATE.stage = stage;
+    var banner = $("status-banner");
+    var text = $("status-text");
+    var spinner = $("status-spinner");
+    if (stage === "idle" || stage === "done") {
+      banner.classList.remove("show");
+      return;
+    }
+    banner.classList.add("show");
+    text.textContent = message;
+    if (stage === "extracting" || stage === "comparing") {
+      banner.className = "status-banner show loading";
+      spinner.style.display = "block";
+    } else {
+      banner.className = "status-banner show error";
+      spinner.style.display = "none";
+    }
+  }
+
+  var EXTRACTION_SYSTEM_PROMPT = "You extract structured hiring requirements from a job description. " +
+    "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
+    "The JSON shape must be exactly: {\"role\": string, \"company\": string or null, \"requirements\": " +
+    "[{\"id\": string, \"text\": string, \"category\": one of \"skill\",\"experience\",\"education\",\"certification\",\"soft_skill\", " +
+    "\"importance\": one of \"required\",\"preferred\"}]}. " +
+    "Extract every distinct requirement stated or clearly implied in the posting. Use short stable ids like r1, r2, r3. " +
+    "Keep requirement text concise, one requirement per entry, do not merge unrelated requirements together.";
+
+  var COMPARISON_SYSTEM_PROMPT = "You compare a candidate resume against a fixed list of job requirements and produce a gap analysis. " +
+    "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
+    "The JSON shape must be exactly: {\"gapList\": [{\"id\": string matching a requirement id you were given, \"requirement\": string, " +
+    "\"status\": one of \"met\",\"partial\",\"missing\", \"evidence\": string (a short paraphrase of what in the resume supports this, or empty string if missing), " +
+    "\"rewrite\": string (a suggested resume bullet that would strengthen or create evidence for this requirement)}], " +
+    "\"structuralFindings\": [{\"issue\": string, \"severity\": one of \"high\",\"medium\",\"low\"}], " +
+    "\"fitQuestions\": [string]}. " +
+    "Judge status strictly: only mark met when the resume clearly demonstrates it, partial when adjacent or weaker evidence exists, missing when absent. " +
+    "structuralFindings should flag resume-structure or ATS issues such as missing dates, no quantified impact, inconsistent formatting, or unclear titles, not requirement gaps. " +
+    "fitQuestions should be interview-prep questions the candidate should be ready to answer given the gaps found. " +
+    "Never quote large blocks of the resume verbatim, paraphrase evidence briefly.";
+
+  function extractRequirements() {
+    setStage("extracting", "Reading the job description and extracting requirements...");
+    return callClaude(EXTRACTION_SYSTEM_PROMPT, STATE.jobText, CONFIG.MAX_TOKENS_EXTRACTION)
+      .then(function (raw) {
+        var parsed = parseJsonSafe(raw);
+        if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.requirements)) {
+          throw new Error("parse_failure");
+        }
+        STATE.extractionResult = parsed.data;
+      });
+  }
+
+  function runComparison() {
+    setStage("comparing", "Comparing your resume against " + (STATE.extractionResult.requirements.length) + " requirements...");
+    var reqPayload = JSON.stringify(STATE.extractionResult.requirements);
+    var userMessage = "Requirements JSON:\n" + reqPayload +
+      "\n\nCandidate resume:\n" + STATE.resumeText +
+      (STATE.roleContext ? "\n\nRole context from candidate: " + STATE.roleContext : "") +
+      buildStrengthsBlock();
+    return callClaude(COMPARISON_SYSTEM_PROMPT, userMessage, CONFIG.MAX_TOKENS_COMPARISON)
+      .then(function (raw) {
+        var parsed = parseJsonSafe(raw);
+        if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.gapList)) {
+          throw new Error("parse_failure");
+        }
+        STATE.comparisonResult = parsed.data;
+        STATE.matchScore = computeMatchScore(parsed.data.gapList);
+      });
+  }
+
+  function computeMatchScore(gapList) {
+    var total = gapList.length;
+    if (total === 0) return { met: 0, total: 0, percent: 0 };
+    var weighted = 0;
+    for (var i = 0; i < gapList.length; i++) {
+      if (gapList[i].status === "met") weighted += 1;
+      else if (gapList[i].status === "partial") weighted += 0.5;
+    }
+    var percent = Math.round((weighted / total) * 100);
+    return { met: weighted, total: total, percent: percent };
+  }
+
+  function runAnalysis() {
+    STATE.extractionResult = null;
+    STATE.comparisonResult = null;
+    STATE.matchScore = null;
+    STATE.uiExpandedRows = {};
+    $("results").classList.remove("show");
+
+    if (!STATE.apiKey) {
+      setStage("error-extract", "No API key saved. Open Settings and add your Anthropic API key.");
+      return;
+    }
+
+    extractRequirements()
+      .then(function () { return runComparison(); })
+      .then(function () {
+        setStage("done", "");
+        renderResults();
+      })
+      .catch(function (err) {
+        if (STATE.extractionResult === null) {
+          setStage("error-extract", "Extraction failed. The job description could not be read into structured requirements. Try again or shorten the posting.");
+        } else {
+          setStage("error-compare", "Comparison failed. The resume could not be matched against the requirements. Try again.");
+        }
+      });
+  }
+
+  function toggleRow(id) {
+    STATE.uiExpandedRows[id] = !STATE.uiExpandedRows[id];
+    renderGapGrid();
+  }
+
+  function renderScore() {
+    if (!STATE.matchScore) return;
+    $("score-num").textContent = STATE.matchScore.percent + "%";
+    $("score-sub").textContent = STATE.matchScore.met + " of " + STATE.matchScore.total + " requirements met, counting partial matches as half credit.";
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
+  function renderGapGrid() {
+    var container = $("gap-grid");
+    if (!STATE.comparisonResult) { container.innerHTML = ""; return; }
+    var list = STATE.comparisonResult.gapList;
+    if (list.length === 0) {
+      container.innerHTML = '<p class="empty-note">No requirements were returned to compare.</p>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var item = list[i];
+      var expanded = !!STATE.uiExpandedRows[item.id];
+      html += '<div class="gap-row' + (expanded ? " expanded" : "") + '" data-row-id="' + escapeHtml(item.id) + '">';
+      html += '  <div class="gap-row-head" data-toggle-id="' + escapeHtml(item.id) + '">';
+      html += '    <span class="req-text">' + escapeHtml(item.requirement) + '</span>';
+      html += '    <span class="status-badge ' + escapeHtml(item.status) + '">' + escapeHtml(item.status) + '</span>';
+      html += '    <span class="expand-arrow">&#9656;</span>';
+      html += '  </div>';
+      html += '  <div class="gap-row-body">';
+      html += '    <div class="sub-label">Evidence in resume</div>';
+      html += '    <p class="evidence">' + (item.evidence ? escapeHtml(item.evidence) : "None found") + '</p>';
+      html += '    <div class="sub-label">Suggested rewrite</div>';
+      html += '    <p>' + escapeHtml(item.rewrite || "No suggestion returned") + '</p>';
+      html += '  </div>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
+
+    var heads = container.querySelectorAll("[data-toggle-id]");
+    for (var j = 0; j < heads.length; j++) {
+      heads[j].addEventListener("click", function (ev) {
+        var id = ev.currentTarget.getAttribute("data-toggle-id");
+        toggleRow(id);
+      });
+    }
+  }
+
+  function renderStructuralFindings() {
+    var container = $("flag-list");
+    if (!STATE.comparisonResult) { container.innerHTML = ""; return; }
+    var findings = STATE.comparisonResult.structuralFindings || [];
+    if (findings.length === 0) {
+      container.innerHTML = '<p class="empty-note">No structural issues flagged.</p>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < findings.length; i++) {
+      var f = findings[i];
+      var sev = f.severity || "low";
+      html += '<div class="flag-item sev-' + escapeHtml(sev) + '">';
+      html += '  <span class="sev-tag">' + escapeHtml(sev) + '</span>';
+      html += '  <p>' + escapeHtml(f.issue) + '</p>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  function renderFitQuestions() {
+    var container = $("fit-list");
+    if (!STATE.comparisonResult) { container.innerHTML = ""; return; }
+    var qs = STATE.comparisonResult.fitQuestions || [];
+    if (qs.length === 0) {
+      container.innerHTML = '<li class="empty-note">No fit questions returned.</li>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < qs.length; i++) {
+      html += "<li>" + escapeHtml(qs[i]) + "</li>";
+    }
+    container.innerHTML = html;
+  }
+
+  function renderResults() {
+    $("results").classList.add("show");
+    renderScore();
+    renderGapGrid();
+    renderStructuralFindings();
+    renderFitQuestions();
+  }
+
+  function init() {
+    loadSettings();
+    renderKeyBanner();
+    renderStorageError();
+
+    $("resume-input").addEventListener("input", updateWordCounts);
+    $("job-input").addEventListener("input", updateWordCounts);
+    $("role-context").addEventListener("input", function () {
+      STATE.roleContext = $("role-context").value;
+    });
+
+    $("analyze-btn").addEventListener("click", runAnalysis);
+
+    $("settings-open").addEventListener("click", openSettings);
+    $("settings-cancel").addEventListener("click", closeSettings);
+    $("settings-save").addEventListener("click", saveAndCloseSettings);
+    $("settings-overlay").addEventListener("click", function (ev) {
+      if (ev.target === $("settings-overlay")) closeSettings();
+    });
+
+    updateWordCounts();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
