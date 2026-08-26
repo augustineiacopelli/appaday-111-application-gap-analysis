@@ -14,6 +14,8 @@ Two optional deal breaker settings run client-side against the extracted posting
 
 A saved location is passed into the comparison call as known fact about the candidate, so a posting's location, residency, or geographic eligibility requirement is judged against where you actually live rather than only what happens to be typed on the resume itself.
 
+When a posting states compensation, a Compensation card shows a specific suggested ask alongside the range it came from. If the posting states both a full posted pay range and a narrower target hiring range, the target range is used since it reflects what the employer actually plans to pay. The suggested number is calculated in plain JavaScript, positioned within that range in proportion to the weighted match score, not asked of the model.
+
 The resume itself is a saved setting rather than a per-analysis paste. Enter it once in Settings and it persists in `localStorage` across sessions, so only the job description changes day to day. A status bar on the main screen shows whether a resume is saved and its word count, with a one-tap link back into Settings to update it. The ranked Strengths list persists the same way.
 
 ## Tech
