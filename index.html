@@ -322,6 +322,19 @@
     font-weight: 500;
   }
 
+  .importance-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    border: 1px solid var(--accent-mid);
+    border-radius: 999px;
+    padding: 1px 7px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
   .status-badge {
     font-family: 'DM Mono', monospace;
     font-size: 11px;
@@ -992,7 +1005,7 @@
           throw new Error("parse_failure");
         }
         STATE.comparisonResult = parsed.data;
-        STATE.matchScore = computeMatchScore(parsed.data.gapList);
+        STATE.matchScore = computeMatchScore(parsed.data.gapList, buildImportanceMap());
       });
   }
 
@@ -1031,16 +1044,32 @@
     return flags;
   }
 
-  function computeMatchScore(gapList) {
-    var total = gapList.length;
-    if (total === 0) return { met: 0, total: 0, percent: 0 };
-    var weighted = 0;
-    for (var i = 0; i < gapList.length; i++) {
-      if (gapList[i].status === "met") weighted += 1;
-      else if (gapList[i].status === "partial") weighted += 0.5;
+  function buildImportanceMap() {
+    var map = {};
+    var reqs = (STATE.extractionResult && STATE.extractionResult.requirements) || [];
+    for (var i = 0; i < reqs.length; i++) {
+      map[reqs[i].id] = reqs[i].importance === "required" ? "required" : "preferred";
     }
-    var percent = Math.round((weighted / total) * 100);
-    return { met: weighted, total: total, percent: percent };
+    return map;
+  }
+
+  function computeMatchScore(gapList, importanceMap) {
+    var total = gapList.length;
+    if (total === 0) return { met: 0, total: 0, percent: 0, requiredMissed: 0 };
+    var earned = 0;
+    var possible = 0;
+    var requiredMissed = 0;
+    for (var i = 0; i < gapList.length; i++) {
+      var item = gapList[i];
+      var isRequired = importanceMap && importanceMap[item.id] === "required";
+      var weight = isRequired ? 2 : 1;
+      possible += weight;
+      if (item.status === "met") earned += weight;
+      else if (item.status === "partial") earned += weight * 0.5;
+      else if (isRequired) requiredMissed += 1;
+    }
+    var percent = possible > 0 ? Math.round((earned / possible) * 100) : 0;
+    return { met: earned, total: possible, percent: percent, requiredMissed: requiredMissed };
   }
 
   function runAnalysis() {
@@ -1081,7 +1110,12 @@
   function renderScore() {
     if (!STATE.matchScore) return;
     $("score-num").textContent = STATE.matchScore.percent + "%";
-    $("score-sub").textContent = STATE.matchScore.met + " of " + STATE.matchScore.total + " requirements met, counting partial matches as half credit.";
+    var sub = "Weighted by importance: required requirements count double, partial credit is half. " +
+      STATE.matchScore.met + " of " + STATE.matchScore.total + " possible points earned.";
+    if (STATE.matchScore.requiredMissed > 0) {
+      sub += " " + STATE.matchScore.requiredMissed + " required requirement" + (STATE.matchScore.requiredMissed === 1 ? " is" : "s are") + " fully missing, weigh that before trusting the percentage alone.";
+    }
+    $("score-sub").textContent = sub;
   }
 
   function escapeHtml(str) {
@@ -1099,12 +1133,14 @@
       return;
     }
     var html = "";
+    var importanceMap = buildImportanceMap();
     for (var i = 0; i < list.length; i++) {
       var item = list[i];
       var expanded = !!STATE.uiExpandedRows[item.id];
+      var isRequired = importanceMap[item.id] === "required";
       html += '<div class="gap-row' + (expanded ? " expanded" : "") + '" data-row-id="' + escapeHtml(item.id) + '">';
       html += '  <div class="gap-row-head" data-toggle-id="' + escapeHtml(item.id) + '">';
-      html += '    <span class="req-text">' + escapeHtml(item.requirement) + '</span>';
+      html += '    <span class="req-text">' + escapeHtml(item.requirement) + (isRequired ? ' <span class="importance-tag">required</span>' : '') + '</span>';
       html += '    <span class="status-badge ' + escapeHtml(item.status) + '">' + escapeHtml(item.status) + '</span>';
       html += '    <span class="expand-arrow">&#9656;</span>';
       html += '  </div>';
