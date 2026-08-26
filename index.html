@@ -711,7 +711,7 @@
   var CONFIG = {
     CLAUDE_MODEL: "claude-sonnet-5",
     API_URL: "https://api.anthropic.com/v1/messages",
-    MAX_TOKENS_EXTRACTION: 1600,
+    MAX_TOKENS_EXTRACTION: 3000,
     MAX_TOKENS_COMPARISON: 4500,
     STORAGE_KEY: "appaday-111-gap-analysis"
   };
@@ -988,7 +988,10 @@
     "For salary, read any compensation range or figure stated in the posting, set stated to false and both numbers null if no salary appears anywhere. " +
     "For travelPercent, read any stated travel expectation as a whole number percent (e.g. 'up to 25% travel' becomes 25), or null if travel is not mentioned. " +
     "For workArrangement, classify the posting as remote only if it is explicitly fully remote with no office requirement, hybrid if it mentions a partial in-office expectation, onsite if it requires being in an office full time, or unstated if the posting never addresses location or work style. " +
-    "For minYearsRequired, read the minimum years of relevant experience explicitly stated for the role, using the lowest number in a stated range (e.g. '5-7 years' becomes 5), or null if no years figure is stated.";
+    "For minYearsRequired, read the minimum years of relevant experience explicitly stated for the role, using the lowest number in a stated range (e.g. '5-7 years' becomes 5), or null if no years figure is stated. " +
+    "Keep each requirement's text under 15 words to control output length, especially on long postings with many requirements. " +
+    "Ignore boilerplate such as equal opportunity statements, applicant tracking system tags, benefits summaries, and company mission statements, they are not requirements. " +
+    "Output the complete JSON object with no truncation, closing every brace and bracket.";
 
   var COMPARISON_SYSTEM_PROMPT = "You compare a candidate resume against a fixed list of job requirements and produce a gap analysis. " +
     "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
