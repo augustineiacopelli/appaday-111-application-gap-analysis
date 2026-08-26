@@ -157,17 +157,39 @@
     border-color: var(--accent-mid);
   }
 
-  textarea.resume, textarea.jobdesc { min-height: 160px; }
-
-  .two-col {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 18px;
+  .resume-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+    font-size: 13px;
   }
 
-  @media (min-width: 720px) {
-    .two-col { grid-template-columns: 1fr 1fr; }
+  .resume-status #resume-status-text { color: var(--muted); }
+  .resume-status.has-resume #resume-status-text { color: var(--ink); }
+
+  .resume-status-edit {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    padding: 4px 0;
   }
+
+  .resume-status-edit:hover { text-decoration: underline; }
+
+  textarea.jobdesc { min-height: 220px; }
 
   .analyze-btn {
     width: 100%;
@@ -540,15 +562,14 @@
 <main>
   <div class="key-banner" id="key-banner">No API key saved yet. Open Settings to add your Anthropic API key before analyzing.</div>
 
-  <div class="two-col">
-    <div class="field-group">
-      <label class="field-label" for="resume-input">Resume <span class="count" id="resume-count">0 words</span></label>
-      <textarea id="resume-input" class="resume" placeholder="Paste your resume text here"></textarea>
-    </div>
-    <div class="field-group">
-      <label class="field-label" for="job-input">Job Description <span class="count" id="job-count">0 words</span></label>
-      <textarea id="job-input" class="jobdesc" placeholder="Paste the job posting text here"></textarea>
-    </div>
+  <div class="resume-status" id="resume-status">
+    <span id="resume-status-text">No resume saved</span>
+    <button type="button" class="resume-status-edit" id="resume-status-edit">Edit in Settings</button>
+  </div>
+
+  <div class="field-group">
+    <label class="field-label" for="job-input">Job Description <span class="count" id="job-count">0 words</span></label>
+    <textarea id="job-input" class="jobdesc" placeholder="Paste the job posting text here"></textarea>
   </div>
 
   <div class="field-group">
@@ -603,6 +624,11 @@
 <div class="modal-overlay" id="settings-overlay">
   <div class="modal">
     <h2>Settings</h2>
+
+    <div class="field-group">
+      <label class="simple" for="core-resume-input">Core Resume <span class="count" id="core-resume-count" style="text-transform: none; letter-spacing: 0;">0 words</span></label>
+      <textarea id="core-resume-input" class="strengths-input" style="min-height: 160px;" placeholder="Paste your resume once. It stays saved here and gets reused for every job description you analyze."></textarea>
+    </div>
 
     <div class="field-group">
       <label class="simple" for="api-key-input">Anthropic API Key</label>
@@ -704,6 +730,7 @@
         STATE.minSalary = (typeof parsed.minSalary === "number") ? parsed.minSalary : null;
         STATE.rejectIfNoSalary = !!parsed.rejectIfNoSalary;
         STATE.maxTravelPercent = (typeof parsed.maxTravelPercent === "number") ? parsed.maxTravelPercent : null;
+        STATE.resumeText = parsed.resumeText || "";
       }
       STATE.storageOk = true;
     } catch (err) {
@@ -719,7 +746,8 @@
         strengthsScope: STATE.strengthsScope,
         minSalary: STATE.minSalary,
         rejectIfNoSalary: STATE.rejectIfNoSalary,
-        maxTravelPercent: STATE.maxTravelPercent
+        maxTravelPercent: STATE.maxTravelPercent,
+        resumeText: STATE.resumeText
       };
       window.localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(toSave));
       STATE.storageOk = true;
@@ -754,6 +782,8 @@
   }
 
   function openSettings() {
+    $("core-resume-input").value = STATE.resumeText;
+    $("core-resume-count").textContent = countWords(STATE.resumeText) + " words";
     $("api-key-input").value = STATE.apiKey;
     $("session-name-input").value = STATE.sessionName;
     var radios = document.querySelectorAll('input[name="strengths-scope"]');
@@ -774,6 +804,7 @@
   }
 
   function saveAndCloseSettings() {
+    STATE.resumeText = $("core-resume-input").value;
     STATE.apiKey = $("api-key-input").value.trim();
     STATE.sessionName = $("session-name-input").value.trim();
     var radios = document.querySelectorAll('input[name="strengths-scope"]');
@@ -790,13 +821,26 @@
     if (isNaN(STATE.maxTravelPercent)) STATE.maxTravelPercent = null;
     saveSettings();
     renderKeyBanner();
+    renderResumeStatus();
+    validateAnalyzeButton();
     closeSettings();
   }
 
+  function renderResumeStatus() {
+    var el = $("resume-status");
+    var text = $("resume-status-text");
+    var words = countWords(STATE.resumeText);
+    if (words > 0) {
+      el.classList.add("has-resume");
+      text.textContent = "Resume saved (" + words + " words)";
+    } else {
+      el.classList.remove("has-resume");
+      text.textContent = "No resume saved";
+    }
+  }
+
   function updateWordCounts() {
-    STATE.resumeText = $("resume-input").value;
     STATE.jobText = $("job-input").value;
-    $("resume-count").textContent = countWords(STATE.resumeText) + " words";
     $("job-count").textContent = countWords(STATE.jobText) + " words";
     validateAnalyzeButton();
   }
@@ -1148,13 +1192,17 @@
   function init() {
     loadSettings();
     renderKeyBanner();
+    renderResumeStatus();
     renderStorageError();
 
-    $("resume-input").addEventListener("input", updateWordCounts);
     $("job-input").addEventListener("input", updateWordCounts);
     $("role-context").addEventListener("input", function () {
       STATE.roleContext = $("role-context").value;
     });
+    $("core-resume-input").addEventListener("input", function () {
+      $("core-resume-count").textContent = countWords($("core-resume-input").value) + " words";
+    });
+    $("resume-status-edit").addEventListener("click", openSettings);
 
     $("analyze-btn").addEventListener("click", runAnalysis);
 
