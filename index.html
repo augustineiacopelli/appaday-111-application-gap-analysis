@@ -759,6 +759,8 @@
     API_URL: "https://api.anthropic.com/v1/messages",
     MAX_TOKENS_EXTRACTION: 3000,
     MAX_TOKENS_COMPARISON: 4500,
+    SALARY_MATCH_FLOOR: 60,
+    SALARY_MATCH_CEILING: 90,
     STORAGE_KEY: "appaday-111-gap-analysis"
   };
 
@@ -1193,8 +1195,11 @@
     }
     if (low == null || high == null) return null;
     if (high < low) { var tmp = low; low = high; high = tmp; }
-    var clampedPercent = Math.max(0, Math.min(100, matchPercent));
-    var raw = low + (clampedPercent / 100) * (high - low);
+    var floorPercent = CONFIG.SALARY_MATCH_FLOOR;
+    var ceilPercent = CONFIG.SALARY_MATCH_CEILING;
+    var clampedPercent = Math.max(floorPercent, Math.min(ceilPercent, matchPercent));
+    var normalized = (clampedPercent - floorPercent) / (ceilPercent - floorPercent);
+    var raw = low + normalized * (high - low);
     var ask = Math.round(raw / 500) * 500;
     if (ask < low) ask = low;
     if (ask > high) ask = high;
@@ -1363,7 +1368,7 @@
     var html = '<div class="salary-ask-box">';
     html += '  <div class="ask-num">$' + rec.suggestedAsk.toLocaleString() + '</div>';
     html += '  <div class="ask-label">Suggested Ask</div>';
-    html += '  <div class="ask-detail">Based on a ' + STATE.matchScore.percent + '% weighted match, positioned within the ' + escapeHtml(rec.basis) + ' of <strong>$' + rec.recommendedLow.toLocaleString() + ' - $' + rec.recommendedHigh.toLocaleString() + '</strong>.</div>';
+    html += '  <div class="ask-detail">Based on a ' + STATE.matchScore.percent + '% weighted match, scaled between a ' + CONFIG.SALARY_MATCH_FLOOR + '% floor and ' + CONFIG.SALARY_MATCH_CEILING + '% ceiling, positioned within the ' + escapeHtml(rec.basis) + ' of <strong>$' + rec.recommendedLow.toLocaleString() + ' - $' + rec.recommendedHigh.toLocaleString() + '</strong>.</div>';
     if (rangeLine) {
       html += '  <div class="ask-detail">' + escapeHtml(rangeLine) + '</div>';
     }
