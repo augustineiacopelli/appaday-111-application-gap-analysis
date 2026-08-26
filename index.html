@@ -1051,11 +1051,15 @@
     "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
     "The JSON shape must be exactly: {\"gapList\": [{\"id\": string matching a requirement id you were given, \"requirement\": string, " +
     "\"status\": one of \"met\",\"partial\",\"missing\", \"evidence\": string (a short paraphrase of what in the resume supports this, or empty string if missing), " +
-    "\"rewrite\": string (a suggested resume bullet that would strengthen or create evidence for this requirement)}], " +
+    "\"rewrite\": string (see rewrite rules below)}], " +
     "\"structuralFindings\": [{\"issue\": string, \"severity\": one of \"high\",\"medium\",\"low\"}], " +
     "\"fitQuestions\": [string]}. " +
     "Judge status strictly: only mark met when the resume clearly demonstrates it, partial when adjacent or weaker evidence exists, missing when absent. " +
     "If the user message states the candidate's location, treat any location, residency, relocation, or geographic eligibility requirement using that stated location as fact, not just what the resume text happens to say. " +
+    "Rewrite rules, these are strict and override any instinct to be maximally impressive: a rewrite may ONLY rephrase, retitle, or reframe something the resume already states as true. Never invent a specific tool, software product, certification, metric, percentage, headcount, budget figure, or accomplishment that is not already present in the resume text, even as a plausible-sounding example. Do not \"create evidence\", only reframe evidence that exists. " +
+    "For a met requirement, the rewrite may tighten or sharpen the existing true bullet. " +
+    "For a partial requirement, the rewrite may reframe the adjacent true experience using the requirement's own terminology, without claiming direct use of a tool or metric the resume never mentions, for example describing existing spreadsheet automation as comparable to a named tool the posting wants is acceptable, claiming the candidate used that named tool is not. " +
+    "For a missing requirement where the resume contains no genuinely adjacent experience to reframe, the rewrite field must instead be an honest sentence stating there is no current resume content to draw on, and suggest either what real experience to gain or how to address it directly in an interview or cover letter. It must never fabricate a bullet to fill the gap. " +
     "structuralFindings should flag resume-structure or ATS issues such as missing dates, no quantified impact, inconsistent formatting, or unclear titles, not requirement gaps. " +
     "fitQuestions should be interview-prep questions the candidate should be ready to answer given the gaps found. " +
     "Never quote large blocks of the resume verbatim, paraphrase evidence briefly. " +
@@ -1291,7 +1295,7 @@
       html += '  <div class="gap-row-body">';
       html += '    <div class="sub-label">Evidence in resume</div>';
       html += '    <p class="evidence">' + (item.evidence ? escapeHtml(item.evidence) : "None found") + '</p>';
-      html += '    <div class="sub-label">Suggested rewrite</div>';
+      html += '    <div class="sub-label">Suggested rewrite (grounded in your resume, never invented)</div>';
       html += '    <p>' + escapeHtml(item.rewrite || "No suggestion returned") + '</p>';
       html += '  </div>';
       html += '</div>';
