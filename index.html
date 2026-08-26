@@ -665,7 +665,7 @@
     </div>
 
     <div class="field-group" id="strengths-list-group">
-      <label class="simple" for="strengths-list-input">Strengths List (ranked, one per line, not saved between sessions)</label>
+      <label class="simple" for="strengths-list-input">Strengths List (ranked, one per line)</label>
       <textarea id="strengths-list-input" class="strengths-input" placeholder="1. Strategic&#10;2. Achiever&#10;3. Learner ..."></textarea>
     </div>
 
@@ -681,6 +681,18 @@
     <div class="field-group">
       <label class="simple" for="max-travel-input">Maximum Travel Percent</label>
       <input type="text" inputmode="numeric" id="max-travel-input" placeholder="e.g. 25">
+    </div>
+
+    <div class="field-group">
+      <label class="radio-option">
+        <input type="checkbox" id="require-remote-input">
+        Remote is a hard requirement for me
+      </label>
+    </div>
+
+    <div class="field-group">
+      <label class="simple" for="years-experience-input">Your Years of Experience</label>
+      <input type="text" inputmode="numeric" id="years-experience-input" placeholder="e.g. 8">
     </div>
 
     <div class="storage-error" id="storage-error">Local storage is unavailable in this browser, so settings will not persist between visits. Everything will still work for this session.</div>
@@ -712,6 +724,8 @@
     minSalary: null,
     rejectIfNoSalary: false,
     maxTravelPercent: null,
+    requireRemote: false,
+    yearsExperience: null,
     resumeText: "",
     jobText: "",
     roleContext: "",
@@ -743,7 +757,10 @@
         STATE.minSalary = (typeof parsed.minSalary === "number") ? parsed.minSalary : null;
         STATE.rejectIfNoSalary = !!parsed.rejectIfNoSalary;
         STATE.maxTravelPercent = (typeof parsed.maxTravelPercent === "number") ? parsed.maxTravelPercent : null;
+        STATE.requireRemote = !!parsed.requireRemote;
+        STATE.yearsExperience = (typeof parsed.yearsExperience === "number") ? parsed.yearsExperience : null;
         STATE.resumeText = parsed.resumeText || "";
+        STATE.strengthsListRaw = parsed.strengthsListRaw || "";
       }
       STATE.storageOk = true;
     } catch (err) {
@@ -757,9 +774,12 @@
         apiKey: STATE.apiKey,
         sessionName: STATE.sessionName,
         strengthsScope: STATE.strengthsScope,
+        strengthsListRaw: STATE.strengthsListRaw,
         minSalary: STATE.minSalary,
         rejectIfNoSalary: STATE.rejectIfNoSalary,
         maxTravelPercent: STATE.maxTravelPercent,
+        requireRemote: STATE.requireRemote,
+        yearsExperience: STATE.yearsExperience,
         resumeText: STATE.resumeText
       };
       window.localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(toSave));
@@ -807,6 +827,8 @@
     $("min-salary-input").value = STATE.minSalary != null ? STATE.minSalary : "";
     $("reject-no-salary-input").checked = STATE.rejectIfNoSalary;
     $("max-travel-input").value = STATE.maxTravelPercent != null ? STATE.maxTravelPercent : "";
+    $("require-remote-input").checked = STATE.requireRemote;
+    $("years-experience-input").value = STATE.yearsExperience != null ? STATE.yearsExperience : "";
     $("masked-key-display").textContent = maskKey(STATE.apiKey);
     renderStorageError();
     $("settings-overlay").classList.add("show");
@@ -832,6 +854,10 @@
     var travelRaw = $("max-travel-input").value.trim();
     STATE.maxTravelPercent = travelRaw === "" ? null : Number(travelRaw);
     if (isNaN(STATE.maxTravelPercent)) STATE.maxTravelPercent = null;
+    STATE.requireRemote = $("require-remote-input").checked;
+    var yearsRaw = $("years-experience-input").value.trim();
+    STATE.yearsExperience = yearsRaw === "" ? null : Number(yearsRaw);
+    if (isNaN(STATE.yearsExperience)) STATE.yearsExperience = null;
     saveSettings();
     renderKeyBanner();
     renderResumeStatus();
@@ -954,11 +980,15 @@
     "[{\"id\": string, \"text\": string, \"category\": one of \"skill\",\"experience\",\"education\",\"certification\",\"soft_skill\", " +
     "\"importance\": one of \"required\",\"preferred\"}], " +
     "\"salary\": {\"stated\": boolean, \"min\": number or null, \"max\": number or null}, " +
-    "\"travelPercent\": number or null}. " +
+    "\"travelPercent\": number or null, " +
+    "\"workArrangement\": one of \"remote\",\"hybrid\",\"onsite\",\"unstated\", " +
+    "\"minYearsRequired\": number or null}. " +
     "Extract every distinct requirement stated or clearly implied in the posting. Use short stable ids like r1, r2, r3. " +
     "Keep requirement text concise, one requirement per entry, do not merge unrelated requirements together. " +
     "For salary, read any compensation range or figure stated in the posting, set stated to false and both numbers null if no salary appears anywhere. " +
-    "For travelPercent, read any stated travel expectation as a whole number percent (e.g. 'up to 25% travel' becomes 25), or null if travel is not mentioned.";
+    "For travelPercent, read any stated travel expectation as a whole number percent (e.g. 'up to 25% travel' becomes 25), or null if travel is not mentioned. " +
+    "For workArrangement, classify the posting as remote only if it is explicitly fully remote with no office requirement, hybrid if it mentions a partial in-office expectation, onsite if it requires being in an office full time, or unstated if the posting never addresses location or work style. " +
+    "For minYearsRequired, read the minimum years of relevant experience explicitly stated for the role, using the lowest number in a stated range (e.g. '5-7 years' becomes 5), or null if no years figure is stated.";
 
   var COMPARISON_SYSTEM_PROMPT = "You compare a candidate resume against a fixed list of job requirements and produce a gap analysis. " +
     "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
@@ -1038,6 +1068,28 @@
         flags.push({ type: "travel", status: "reject", message: "Posted travel is " + travel + "%, above your max of " + STATE.maxTravelPercent + "%." });
       } else {
         flags.push({ type: "travel", status: "pass", message: "Posted travel is " + travel + "%, within your max of " + STATE.maxTravelPercent + "%." });
+      }
+    }
+
+    if (STATE.requireRemote) {
+      var arrangement = extraction.workArrangement || "unstated";
+      if (arrangement === "remote") {
+        flags.push({ type: "location", status: "pass", message: "Posting is fully remote, matching your requirement." });
+      } else if (arrangement === "unstated") {
+        flags.push({ type: "location", status: "unknown", message: "Posting does not state a work arrangement. You require remote." });
+      } else {
+        flags.push({ type: "location", status: "reject", message: "Posting is " + arrangement + ", but you require fully remote." });
+      }
+    }
+
+    if (STATE.yearsExperience != null) {
+      var minYears = extraction.minYearsRequired;
+      if (minYears == null) {
+        flags.push({ type: "experience", status: "unknown", message: "Posting does not state a minimum years of experience. You have " + STATE.yearsExperience + "." });
+      } else if (STATE.yearsExperience < minYears) {
+        flags.push({ type: "experience", status: "reject", message: "Posting requires " + minYears + "+ years, you have " + STATE.yearsExperience + "." });
+      } else {
+        flags.push({ type: "experience", status: "pass", message: "Posting requires " + minYears + "+ years, you have " + STATE.yearsExperience + "." });
       }
     }
 
