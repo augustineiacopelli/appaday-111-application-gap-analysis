@@ -8,7 +8,9 @@ Paste a resume and a job description. Claude extracts every real requirement sta
 
 ## How it works
 
-Two sequential Claude API calls. The first reads only the job description and returns structured JSON requirements. The second reads the resume plus those requirements (never the raw job text again) plus optional role context and an optional ranked strengths list, and returns a gap list, structural findings, and fit questions as JSON. The match score is calculated in plain JavaScript from the gap list's status values, not trusted from the model as a number.
+Two sequential Claude API calls. The first reads only the job description and returns structured JSON requirements, plus any stated salary range and travel percentage. The second reads the resume plus those requirements (never the raw job text again) plus optional role context and an optional ranked strengths list, and returns a gap list, structural findings, and fit questions as JSON. The match score is calculated in plain JavaScript from the gap list's status values, not trusted from the model as a number.
+
+Two optional deal breaker settings run client-side against the extracted posting the moment extraction finishes, before the comparison call even starts: a minimum salary requirement, with an option to reject any posting that lists no salary at all, and a maximum travel percentage. Both are pure JavaScript checks against the model's extracted figures, not model judgment calls.
 
 ## Tech
 
