@@ -12,6 +12,8 @@ Two sequential Claude API calls. The first reads only the job description and re
 
 Two optional deal breaker settings run client-side against the extracted posting the moment extraction finishes, before the comparison call even starts: a minimum salary requirement, with an option to reject any posting that lists no salary at all, and a maximum travel percentage. Both are pure JavaScript checks against the model's extracted figures, not model judgment calls.
 
+The resume itself is a saved setting rather than a per-analysis paste. Enter it once in Settings and it persists in `localStorage` across sessions, so only the job description changes day to day. A status bar on the main screen shows whether a resume is saved and its word count, with a one-tap link back into Settings to update it.
+
 ## Tech
 
 Single self-contained `index.html`. No frameworks, no build step. Google Fonts is the only external dependency. Calls the Anthropic API directly from the browser using the `anthropic-dangerous-direct-browser-access` header. API key, session name, and strengths scope preference are stored in `localStorage`, wrapped in try/catch. The ranked strengths list itself is session-only and never persisted.
