@@ -223,6 +223,9 @@
   .results { margin-top: 36px; display: none; }
   .results.show { display: block; }
 
+  .dealbreaker-card { margin-top: 24px; display: none; }
+  .dealbreaker-card.show { display: block; }
+
   .score-card {
     background: var(--card-bg);
     border: 1px solid var(--rule);
@@ -560,6 +563,12 @@
     <span id="status-text"></span>
   </div>
 
+  <section class="block dealbreaker-card" id="dealbreaker-card">
+    <h2 class="block-title">Deal Breakers</h2>
+    <p class="block-desc">Checked against your minimum salary and maximum travel settings, before scoring anything else.</p>
+    <div class="flag-list" id="dealbreaker-list"></div>
+  </section>
+
   <div class="results" id="results">
     <div class="score-card">
       <div class="score-num" id="score-num">0%</div>
@@ -621,6 +630,20 @@
       <textarea id="strengths-list-input" class="strengths-input" placeholder="1. Strategic&#10;2. Achiever&#10;3. Learner ..."></textarea>
     </div>
 
+    <div class="field-group">
+      <label class="simple" for="min-salary-input">Minimum Salary Requirement</label>
+      <input type="text" inputmode="numeric" id="min-salary-input" placeholder="e.g. 85000">
+      <label class="radio-option" style="margin-top: 10px;">
+        <input type="checkbox" id="reject-no-salary-input">
+        Reject postings that do not list a salary
+      </label>
+    </div>
+
+    <div class="field-group">
+      <label class="simple" for="max-travel-input">Maximum Travel Percent</label>
+      <input type="text" inputmode="numeric" id="max-travel-input" placeholder="e.g. 25">
+    </div>
+
     <div class="storage-error" id="storage-error">Local storage is unavailable in this browser, so settings will not persist between visits. Everything will still work for this session.</div>
 
     <div class="modal-actions">
@@ -638,7 +661,7 @@
     CLAUDE_MODEL: "claude-sonnet-5",
     API_URL: "https://api.anthropic.com/v1/messages",
     MAX_TOKENS_EXTRACTION: 1600,
-    MAX_TOKENS_COMPARISON: 2600,
+    MAX_TOKENS_COMPARISON: 4500,
     STORAGE_KEY: "appaday-111-gap-analysis"
   };
 
@@ -647,12 +670,16 @@
     sessionName: "",
     strengthsScope: "none",
     strengthsListRaw: "",
+    minSalary: null,
+    rejectIfNoSalary: false,
+    maxTravelPercent: null,
     resumeText: "",
     jobText: "",
     roleContext: "",
     extractionResult: null,
     comparisonResult: null,
     matchScore: null,
+    dealbreakers: null,
     uiExpandedRows: {},
     stage: "idle",
     storageOk: true
@@ -674,6 +701,9 @@
         STATE.apiKey = parsed.apiKey || "";
         STATE.sessionName = parsed.sessionName || "";
         STATE.strengthsScope = parsed.strengthsScope || "none";
+        STATE.minSalary = (typeof parsed.minSalary === "number") ? parsed.minSalary : null;
+        STATE.rejectIfNoSalary = !!parsed.rejectIfNoSalary;
+        STATE.maxTravelPercent = (typeof parsed.maxTravelPercent === "number") ? parsed.maxTravelPercent : null;
       }
       STATE.storageOk = true;
     } catch (err) {
@@ -686,7 +716,10 @@
       var toSave = {
         apiKey: STATE.apiKey,
         sessionName: STATE.sessionName,
-        strengthsScope: STATE.strengthsScope
+        strengthsScope: STATE.strengthsScope,
+        minSalary: STATE.minSalary,
+        rejectIfNoSalary: STATE.rejectIfNoSalary,
+        maxTravelPercent: STATE.maxTravelPercent
       };
       window.localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(toSave));
       STATE.storageOk = true;
@@ -728,6 +761,9 @@
       radios[i].checked = radios[i].value === STATE.strengthsScope;
     }
     $("strengths-list-input").value = STATE.strengthsListRaw;
+    $("min-salary-input").value = STATE.minSalary != null ? STATE.minSalary : "";
+    $("reject-no-salary-input").checked = STATE.rejectIfNoSalary;
+    $("max-travel-input").value = STATE.maxTravelPercent != null ? STATE.maxTravelPercent : "";
     $("masked-key-display").textContent = maskKey(STATE.apiKey);
     renderStorageError();
     $("settings-overlay").classList.add("show");
@@ -745,6 +781,13 @@
       if (radios[i].checked) STATE.strengthsScope = radios[i].value;
     }
     STATE.strengthsListRaw = $("strengths-list-input").value;
+    var salaryRaw = $("min-salary-input").value.trim();
+    STATE.minSalary = salaryRaw === "" ? null : Number(salaryRaw);
+    if (isNaN(STATE.minSalary)) STATE.minSalary = null;
+    STATE.rejectIfNoSalary = $("reject-no-salary-input").checked;
+    var travelRaw = $("max-travel-input").value.trim();
+    STATE.maxTravelPercent = travelRaw === "" ? null : Number(travelRaw);
+    if (isNaN(STATE.maxTravelPercent)) STATE.maxTravelPercent = null;
     saveSettings();
     renderKeyBanner();
     closeSettings();
@@ -852,9 +895,13 @@
     "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
     "The JSON shape must be exactly: {\"role\": string, \"company\": string or null, \"requirements\": " +
     "[{\"id\": string, \"text\": string, \"category\": one of \"skill\",\"experience\",\"education\",\"certification\",\"soft_skill\", " +
-    "\"importance\": one of \"required\",\"preferred\"}]}. " +
+    "\"importance\": one of \"required\",\"preferred\"}], " +
+    "\"salary\": {\"stated\": boolean, \"min\": number or null, \"max\": number or null}, " +
+    "\"travelPercent\": number or null}. " +
     "Extract every distinct requirement stated or clearly implied in the posting. Use short stable ids like r1, r2, r3. " +
-    "Keep requirement text concise, one requirement per entry, do not merge unrelated requirements together.";
+    "Keep requirement text concise, one requirement per entry, do not merge unrelated requirements together. " +
+    "For salary, read any compensation range or figure stated in the posting, set stated to false and both numbers null if no salary appears anywhere. " +
+    "For travelPercent, read any stated travel expectation as a whole number percent (e.g. 'up to 25% travel' becomes 25), or null if travel is not mentioned.";
 
   var COMPARISON_SYSTEM_PROMPT = "You compare a candidate resume against a fixed list of job requirements and produce a gap analysis. " +
     "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
@@ -866,7 +913,10 @@
     "Judge status strictly: only mark met when the resume clearly demonstrates it, partial when adjacent or weaker evidence exists, missing when absent. " +
     "structuralFindings should flag resume-structure or ATS issues such as missing dates, no quantified impact, inconsistent formatting, or unclear titles, not requirement gaps. " +
     "fitQuestions should be interview-prep questions the candidate should be ready to answer given the gaps found. " +
-    "Never quote large blocks of the resume verbatim, paraphrase evidence briefly.";
+    "Never quote large blocks of the resume verbatim, paraphrase evidence briefly. " +
+    "Keep every field tight to control output length: evidence under 20 words, rewrite under 25 words, each structuralFindings issue under 20 words, each fitQuestion under 20 words. " +
+    "Budget your output across all requirements you were given, do not let early items consume the space later items need. " +
+    "Output the complete JSON object with no truncation, closing every brace and bracket.";
 
   function extractRequirements() {
     setStage("extracting", "Reading the job description and extracting requirements...");
@@ -874,9 +924,12 @@
       .then(function (raw) {
         var parsed = parseJsonSafe(raw);
         if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.requirements)) {
+          console.error("Extraction parse failure. Reason:", parsed.error, "Raw response:", raw);
           throw new Error("parse_failure");
         }
         STATE.extractionResult = parsed.data;
+        STATE.dealbreakers = evaluateDealbreakers(parsed.data);
+        renderDealbreakers();
       });
   }
 
@@ -891,11 +944,47 @@
       .then(function (raw) {
         var parsed = parseJsonSafe(raw);
         if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.gapList)) {
+          console.error("Comparison parse failure. Reason:", parsed.error, "Raw response:", raw);
           throw new Error("parse_failure");
         }
         STATE.comparisonResult = parsed.data;
         STATE.matchScore = computeMatchScore(parsed.data.gapList);
       });
+  }
+
+  function evaluateDealbreakers(extraction) {
+    var flags = [];
+    var salary = extraction.salary || { stated: false, min: null, max: null };
+
+    if (STATE.minSalary != null) {
+      if (!salary.stated) {
+        if (STATE.rejectIfNoSalary) {
+          flags.push({ type: "salary", status: "reject", message: "No salary listed in the posting, and reject-if-missing is on." });
+        } else {
+          flags.push({ type: "salary", status: "unknown", message: "Posting does not list a salary. Your minimum is $" + STATE.minSalary.toLocaleString() + "." });
+        }
+      } else {
+        var postedTop = salary.max != null ? salary.max : salary.min;
+        if (postedTop != null && postedTop < STATE.minSalary) {
+          flags.push({ type: "salary", status: "reject", message: "Posted range tops out at $" + postedTop.toLocaleString() + ", below your minimum of $" + STATE.minSalary.toLocaleString() + "." });
+        } else {
+          flags.push({ type: "salary", status: "pass", message: "Posted salary meets your minimum of $" + STATE.minSalary.toLocaleString() + "." });
+        }
+      }
+    }
+
+    if (STATE.maxTravelPercent != null) {
+      var travel = extraction.travelPercent;
+      if (travel == null) {
+        flags.push({ type: "travel", status: "unknown", message: "Posting does not state a travel percentage. Your max is " + STATE.maxTravelPercent + "%." });
+      } else if (travel > STATE.maxTravelPercent) {
+        flags.push({ type: "travel", status: "reject", message: "Posted travel is " + travel + "%, above your max of " + STATE.maxTravelPercent + "%." });
+      } else {
+        flags.push({ type: "travel", status: "pass", message: "Posted travel is " + travel + "%, within your max of " + STATE.maxTravelPercent + "%." });
+      }
+    }
+
+    return flags;
   }
 
   function computeMatchScore(gapList) {
@@ -914,8 +1003,10 @@
     STATE.extractionResult = null;
     STATE.comparisonResult = null;
     STATE.matchScore = null;
+    STATE.dealbreakers = null;
     STATE.uiExpandedRows = {};
     $("results").classList.remove("show");
+    $("dealbreaker-card").classList.remove("show");
 
     if (!STATE.apiKey) {
       setStage("error-extract", "No API key saved. Open Settings and add your Anthropic API key.");
@@ -929,10 +1020,11 @@
         renderResults();
       })
       .catch(function (err) {
+        console.error("Analysis failed:", err);
         if (STATE.extractionResult === null) {
-          setStage("error-extract", "Extraction failed. The job description could not be read into structured requirements. Try again or shorten the posting.");
+          setStage("error-extract", "Extraction failed (" + err.message + "). The job description could not be read into structured requirements. Try again or shorten the posting.");
         } else {
-          setStage("error-compare", "Comparison failed. The resume could not be matched against the requirements. Try again.");
+          setStage("error-compare", "Comparison failed (" + err.message + "). Open the browser console for the raw response. Try again, or shorten the resume and job description.");
         }
       });
   }
@@ -1032,6 +1124,25 @@
     renderGapGrid();
     renderStructuralFindings();
     renderFitQuestions();
+  }
+
+  function renderDealbreakers() {
+    var card = $("dealbreaker-card");
+    var container = $("dealbreaker-list");
+    var flags = STATE.dealbreakers || [];
+    if (flags.length === 0) { card.classList.remove("show"); return; }
+    var statusToBadge = { pass: "met", reject: "missing", unknown: "partial" };
+    var html = "";
+    for (var i = 0; i < flags.length; i++) {
+      var f = flags[i];
+      var badgeClass = statusToBadge[f.status] || "partial";
+      html += '<div class="flag-item sev-' + (f.status === "reject" ? "high" : (f.status === "unknown" ? "medium" : "low")) + '">';
+      html += '  <span class="status-badge ' + badgeClass + '">' + escapeHtml(f.status) + '</span>';
+      html += '  <p>' + escapeHtml(f.message) + '</p>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
+    card.classList.add("show");
   }
 
   function init() {
