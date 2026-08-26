@@ -248,6 +248,41 @@
   .dealbreaker-card { margin-top: 24px; display: none; }
   .dealbreaker-card.show { display: block; }
 
+  #salary-card { display: none; }
+  #salary-card.show { display: block; }
+
+  .salary-ask-box {
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .salary-ask-box .ask-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(30px, 7vw, 40px);
+    color: var(--gold);
+    line-height: 1;
+  }
+
+  .salary-ask-box .ask-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .salary-ask-box .ask-detail {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .salary-ask-box .ask-detail strong { color: var(--ink); font-weight: 600; }
+
   .score-card {
     background: var(--card-bg);
     border: 1px solid var(--rule);
@@ -610,6 +645,12 @@
       <div class="score-sub" id="score-sub"></div>
     </div>
 
+    <section class="block" id="salary-card">
+      <h2 class="block-title">Compensation</h2>
+      <p class="block-desc">Where to target within the posted range, based on your match strength.</p>
+      <div class="salary-card-inner" id="salary-card-inner"></div>
+    </section>
+
     <section class="block">
       <h2 class="block-title">Requirement Gaps</h2>
       <p class="block-desc">Tap a row to see the evidence found in your resume and a suggested rewrite.</p>
@@ -738,6 +779,7 @@
     extractionResult: null,
     comparisonResult: null,
     matchScore: null,
+    salaryRecommendation: null,
     dealbreakers: null,
     uiExpandedRows: {},
     stage: "idle",
@@ -989,13 +1031,13 @@
     "The JSON shape must be exactly: {\"role\": string, \"company\": string or null, \"requirements\": " +
     "[{\"id\": string, \"text\": string, \"category\": one of \"skill\",\"experience\",\"education\",\"certification\",\"soft_skill\", " +
     "\"importance\": one of \"required\",\"preferred\"}], " +
-    "\"salary\": {\"stated\": boolean, \"min\": number or null, \"max\": number or null}, " +
+    "\"salary\": {\"stated\": boolean, \"min\": number or null, \"max\": number or null, \"targetMin\": number or null, \"targetMax\": number or null}, " +
     "\"travelPercent\": number or null, " +
     "\"workArrangement\": one of \"remote\",\"hybrid\",\"onsite\",\"unstated\", " +
     "\"minYearsRequired\": number or null}. " +
     "Extract every distinct requirement stated or clearly implied in the posting. Use short stable ids like r1, r2, r3. " +
     "Keep requirement text concise, one requirement per entry, do not merge unrelated requirements together. " +
-    "For salary, read any compensation range or figure stated in the posting, set stated to false and both numbers null if no salary appears anywhere. " +
+    "For salary, read any compensation range or figure stated in the posting, set stated to false and all four numbers null if no salary appears anywhere. min and max are the full posted pay range. If the posting separately states a narrower target hiring range distinct from the full pay range (sometimes worded as 'target hiring range' or similar), put that narrower range in targetMin and targetMax, otherwise leave targetMin and targetMax null. " +
     "For travelPercent, read any stated travel expectation as a whole number percent (e.g. 'up to 25% travel' becomes 25), or null if travel is not mentioned. " +
     "For workArrangement, classify the posting as remote only if it is explicitly fully remote with no office requirement, hybrid if it mentions a partial in-office expectation, onsite if it requires being in an office full time, or unstated if the posting never addresses location or work style. " +
     "For minYearsRequired, read the minimum years of relevant experience explicitly stated for the role, using the lowest number in a stated range (e.g. '5-7 years' becomes 5), or null if no years figure is stated. " +
@@ -1051,12 +1093,13 @@
         }
         STATE.comparisonResult = parsed.data;
         STATE.matchScore = computeMatchScore(parsed.data.gapList, buildImportanceMap());
+        STATE.salaryRecommendation = computeSalaryRecommendation(STATE.extractionResult.salary, STATE.matchScore.percent);
       });
   }
 
   function evaluateDealbreakers(extraction) {
     var flags = [];
-    var salary = extraction.salary || { stated: false, min: null, max: null };
+    var salary = extraction.salary || { stated: false, min: null, max: null, targetMin: null, targetMax: null };
 
     if (STATE.minSalary != null) {
       if (!salary.stated) {
@@ -1139,10 +1182,39 @@
     return { met: earned, total: possible, percent: percent, requiredMissed: requiredMissed };
   }
 
+  function computeSalaryRecommendation(salary, matchPercent) {
+    if (!salary || !salary.stated) return null;
+    var useTarget = (salary.targetMin != null && salary.targetMax != null);
+    var low = useTarget ? salary.targetMin : salary.min;
+    var high = useTarget ? salary.targetMax : salary.max;
+    if (low == null || high == null) {
+      low = salary.min != null ? salary.min : salary.max;
+      high = salary.max != null ? salary.max : salary.min;
+    }
+    if (low == null || high == null) return null;
+    if (high < low) { var tmp = low; low = high; high = tmp; }
+    var clampedPercent = Math.max(0, Math.min(100, matchPercent));
+    var raw = low + (clampedPercent / 100) * (high - low);
+    var ask = Math.round(raw / 500) * 500;
+    if (ask < low) ask = low;
+    if (ask > high) ask = high;
+    return {
+      postedMin: salary.min,
+      postedMax: salary.max,
+      targetMin: salary.targetMin,
+      targetMax: salary.targetMax,
+      basis: useTarget ? "target hiring range" : "posted pay range",
+      recommendedLow: low,
+      recommendedHigh: high,
+      suggestedAsk: ask
+    };
+  }
+
   function runAnalysis() {
     STATE.extractionResult = null;
     STATE.comparisonResult = null;
     STATE.matchScore = null;
+    STATE.salaryRecommendation = null;
     STATE.dealbreakers = null;
     STATE.uiExpandedRows = {};
     $("results").classList.remove("show");
@@ -1268,9 +1340,37 @@
   function renderResults() {
     $("results").classList.add("show");
     renderScore();
+    renderSalaryRecommendation();
     renderGapGrid();
     renderStructuralFindings();
     renderFitQuestions();
+  }
+
+  function renderSalaryRecommendation() {
+    var section = $("salary-card");
+    var container = $("salary-card-inner");
+    var rec = STATE.salaryRecommendation;
+    if (!rec) { section.classList.remove("show"); container.innerHTML = ""; return; }
+
+    var rangeLine = "";
+    if (rec.postedMin != null && rec.postedMax != null) {
+      rangeLine += "Posted range: $" + rec.postedMin.toLocaleString() + " - $" + rec.postedMax.toLocaleString() + ".";
+    }
+    if (rec.targetMin != null && rec.targetMax != null) {
+      rangeLine += (rangeLine ? " " : "") + "Stated target hiring range: $" + rec.targetMin.toLocaleString() + " - $" + rec.targetMax.toLocaleString() + ".";
+    }
+
+    var html = '<div class="salary-ask-box">';
+    html += '  <div class="ask-num">$' + rec.suggestedAsk.toLocaleString() + '</div>';
+    html += '  <div class="ask-label">Suggested Ask</div>';
+    html += '  <div class="ask-detail">Based on a ' + STATE.matchScore.percent + '% weighted match, positioned within the ' + escapeHtml(rec.basis) + ' of <strong>$' + rec.recommendedLow.toLocaleString() + ' - $' + rec.recommendedHigh.toLocaleString() + '</strong>.</div>';
+    if (rangeLine) {
+      html += '  <div class="ask-detail">' + escapeHtml(rangeLine) + '</div>';
+    }
+    html += '</div>';
+
+    container.innerHTML = html;
+    section.classList.add("show");
   }
 
   function renderDealbreakers() {
