@@ -695,6 +695,11 @@
       <input type="text" inputmode="numeric" id="years-experience-input" placeholder="e.g. 8">
     </div>
 
+    <div class="field-group">
+      <label class="simple" for="location-input">Your Location</label>
+      <input type="text" id="location-input" placeholder="e.g. Wichita, KS">
+    </div>
+
     <div class="storage-error" id="storage-error">Local storage is unavailable in this browser, so settings will not persist between visits. Everything will still work for this session.</div>
 
     <div class="modal-actions">
@@ -726,6 +731,7 @@
     maxTravelPercent: null,
     requireRemote: false,
     yearsExperience: null,
+    location: "",
     resumeText: "",
     jobText: "",
     roleContext: "",
@@ -759,6 +765,7 @@
         STATE.maxTravelPercent = (typeof parsed.maxTravelPercent === "number") ? parsed.maxTravelPercent : null;
         STATE.requireRemote = !!parsed.requireRemote;
         STATE.yearsExperience = (typeof parsed.yearsExperience === "number") ? parsed.yearsExperience : null;
+        STATE.location = parsed.location || "";
         STATE.resumeText = parsed.resumeText || "";
         STATE.strengthsListRaw = parsed.strengthsListRaw || "";
       }
@@ -780,6 +787,7 @@
         maxTravelPercent: STATE.maxTravelPercent,
         requireRemote: STATE.requireRemote,
         yearsExperience: STATE.yearsExperience,
+        location: STATE.location,
         resumeText: STATE.resumeText
       };
       window.localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(toSave));
@@ -829,6 +837,7 @@
     $("max-travel-input").value = STATE.maxTravelPercent != null ? STATE.maxTravelPercent : "";
     $("require-remote-input").checked = STATE.requireRemote;
     $("years-experience-input").value = STATE.yearsExperience != null ? STATE.yearsExperience : "";
+    $("location-input").value = STATE.location;
     $("masked-key-display").textContent = maskKey(STATE.apiKey);
     renderStorageError();
     $("settings-overlay").classList.add("show");
@@ -858,6 +867,7 @@
     var yearsRaw = $("years-experience-input").value.trim();
     STATE.yearsExperience = yearsRaw === "" ? null : Number(yearsRaw);
     if (isNaN(STATE.yearsExperience)) STATE.yearsExperience = null;
+    STATE.location = $("location-input").value.trim();
     saveSettings();
     renderKeyBanner();
     renderResumeStatus();
@@ -1001,6 +1011,7 @@
     "\"structuralFindings\": [{\"issue\": string, \"severity\": one of \"high\",\"medium\",\"low\"}], " +
     "\"fitQuestions\": [string]}. " +
     "Judge status strictly: only mark met when the resume clearly demonstrates it, partial when adjacent or weaker evidence exists, missing when absent. " +
+    "If the user message states the candidate's location, treat any location, residency, relocation, or geographic eligibility requirement using that stated location as fact, not just what the resume text happens to say. " +
     "structuralFindings should flag resume-structure or ATS issues such as missing dates, no quantified impact, inconsistent formatting, or unclear titles, not requirement gaps. " +
     "fitQuestions should be interview-prep questions the candidate should be ready to answer given the gaps found. " +
     "Never quote large blocks of the resume verbatim, paraphrase evidence briefly. " +
@@ -1028,6 +1039,7 @@
     var reqPayload = JSON.stringify(STATE.extractionResult.requirements);
     var userMessage = "Requirements JSON:\n" + reqPayload +
       "\n\nCandidate resume:\n" + STATE.resumeText +
+      (STATE.location ? "\n\nCandidate's stated location: " + STATE.location + ". Use this fact for any requirement about location, residency, relocation, or geographic eligibility, even if the resume itself does not mention it. Do not mark a location requirement as missing solely because the resume is silent on it." : "") +
       (STATE.roleContext ? "\n\nRole context from candidate: " + STATE.roleContext : "") +
       buildStrengthsBlock();
     return callClaude(COMPARISON_SYSTEM_PROMPT, userMessage, CONFIG.MAX_TOKENS_COMPARISON)
