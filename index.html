@@ -589,6 +589,50 @@
     font-size: 12px;
     font-family: 'DM Mono', monospace;
   }
+
+  .print-header { display: none; }
+
+  .print-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 18px;
+  }
+
+  .print-btn {
+    padding: 10px 18px;
+    border-radius: 9px;
+    border: 1px solid var(--rule);
+    background: var(--card-bg);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+
+  .print-btn:hover { border-color: var(--accent-mid); color: var(--accent); }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    main { max-width: 100%; padding: 0 12px; }
+    header { padding: 0 0 12px; border-bottom: 2px solid var(--ink); }
+    .brand p.tag { display: none; }
+    .dealbreaker-card, .results { display: block !important; margin-top: 16px; }
+    .print-header { display: block; margin-bottom: 16px; }
+    .print-header h2 { font-family: 'DM Serif Display', serif; font-size: 18px; margin-bottom: 4px; }
+    .print-header p { font-size: 12px; color: var(--muted); }
+    .score-card, .salary-ask-box, .gap-row, .flag-item, .fit-card {
+      box-shadow: none;
+      border: 1px solid #999;
+      break-inside: avoid;
+    }
+    .gap-row-body { display: block !important; padding-top: 14px; }
+    .expand-arrow { display: none; }
+    .gap-row-head { cursor: default; }
+    section.block { break-inside: avoid; margin-bottom: 20px; }
+  }
 </style>
 </head>
 <body>
@@ -599,7 +643,7 @@
     <h1><span class="num">111</span>Application Gap Analysis</h1>
     <p class="tag">Paste a resume and a job posting. Claude checks every requirement against your resume and shows exactly what is missing.</p>
   </div>
-  <button class="gear-btn" id="settings-open" type="button" aria-label="Settings">
+  <button class="gear-btn no-print" id="settings-open" type="button" aria-label="Settings">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="3"></circle>
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -608,26 +652,26 @@
 </header>
 
 <main>
-  <div class="key-banner" id="key-banner">No API key saved yet. Open Settings to add your Anthropic API key before analyzing.</div>
+  <div class="key-banner no-print" id="key-banner">No API key saved yet. Open Settings to add your Anthropic API key before analyzing.</div>
 
-  <div class="resume-status" id="resume-status">
+  <div class="resume-status no-print" id="resume-status">
     <span id="resume-status-text">No resume saved</span>
     <button type="button" class="resume-status-edit" id="resume-status-edit">Edit in Settings</button>
   </div>
 
-  <div class="field-group">
+  <div class="field-group no-print">
     <label class="field-label" for="job-input">Job Description <span class="count" id="job-count">0 words</span></label>
     <textarea id="job-input" class="jobdesc" placeholder="Paste the job posting text here"></textarea>
   </div>
 
-  <div class="field-group">
+  <div class="field-group no-print">
     <label class="field-label" for="role-context">Role Context <span class="count">optional</span></label>
     <input type="text" id="role-context" placeholder="e.g. internal transfer, career switch, referral from a colleague">
   </div>
 
-  <button class="analyze-btn" id="analyze-btn" type="button" disabled>Analyze</button>
+  <button class="analyze-btn no-print" id="analyze-btn" type="button" disabled>Analyze</button>
 
-  <div class="status-banner" id="status-banner">
+  <div class="status-banner no-print" id="status-banner">
     <div class="spinner" id="status-spinner"></div>
     <span id="status-text"></span>
   </div>
@@ -639,6 +683,12 @@
   </section>
 
   <div class="results" id="results">
+    <div class="print-header" id="print-header"></div>
+
+    <div class="print-actions no-print">
+      <button type="button" class="print-btn" id="print-btn">Print / Save as PDF</button>
+    </div>
+
     <div class="score-card">
       <div class="score-num" id="score-num">0%</div>
       <div class="score-label">Match Score</div>
@@ -673,7 +723,7 @@
   </div>
 </main>
 
-<footer>AppADay 111 &middot; Application Gap Analysis</footer>
+<footer class="no-print">AppADay 111 &middot; Application Gap Analysis</footer>
 
 <div class="modal-overlay" id="settings-overlay">
   <div class="modal">
@@ -1346,6 +1396,21 @@
     container.innerHTML = html;
   }
 
+  function printReport() {
+    var header = $("print-header");
+    var now = new Date();
+    var dateStr = now.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+    var titleLine = "Application Gap Analysis Report";
+    if (STATE.sessionName) titleLine += " - " + STATE.sessionName;
+    var role = (STATE.extractionResult && STATE.extractionResult.role) ? STATE.extractionResult.role : "";
+    var company = (STATE.extractionResult && STATE.extractionResult.company) ? STATE.extractionResult.company : "";
+    var subLine = dateStr;
+    if (role) subLine += " &middot; " + escapeHtml(role);
+    if (company) subLine += " &middot; " + escapeHtml(company);
+    header.innerHTML = "<h2>" + escapeHtml(titleLine) + "</h2><p>" + subLine + "</p>";
+    window.print();
+  }
+
   function renderResults() {
     $("results").classList.add("show");
     renderScore();
@@ -1415,6 +1480,7 @@
       $("core-resume-count").textContent = countWords($("core-resume-input").value) + " words";
     });
     $("resume-status-edit").addEventListener("click", openSettings);
+    $("print-btn").addEventListener("click", printReport);
 
     $("analyze-btn").addEventListener("click", runAnalysis);
 
