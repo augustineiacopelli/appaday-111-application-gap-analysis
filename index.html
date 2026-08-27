@@ -461,6 +461,38 @@
   .fit-card ol { padding-left: 20px; display: grid; gap: 10px; }
   .fit-card li { font-size: 14px; }
 
+  .skills-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .skill-chip {
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid rgba(47, 107, 58, 0.3);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .copy-skills-btn {
+    padding: 10px 18px;
+    border-radius: 9px;
+    border: 1px solid var(--rule);
+    background: var(--card-bg);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+
+  .copy-skills-btn:hover { border-color: var(--accent-mid); color: var(--accent); }
+
   .empty-note { font-size: 13px; color: var(--muted); font-style: italic; }
 
   .modal-overlay {
@@ -707,6 +739,13 @@
       <div class="gap-grid" id="gap-grid"></div>
     </section>
 
+    <section class="block" id="skills-select-card">
+      <h2 class="block-title">Skills to Select</h2>
+      <p class="block-desc">Hard skills and certifications this posting asked for that your resume actually backs up, worded to paste into a Workday-style skills picker. Only requirements marked met or partial appear here, nothing is added that your resume doesn't support.</p>
+      <div class="skills-chip-list" id="skills-chip-list"></div>
+      <button type="button" class="copy-skills-btn no-print" id="copy-skills-btn">Copy list</button>
+    </section>
+
     <section class="block">
       <h2 class="block-title">Structural Findings</h2>
       <p class="block-desc">Formatting or resume-structure issues an ATS or a recruiter might flag.</p>
@@ -832,6 +871,7 @@
     comparisonResult: null,
     matchScore: null,
     salaryRecommendation: null,
+    skillsToSelect: [],
     dealbreakers: null,
     uiExpandedRows: {},
     stage: "idle",
@@ -1219,6 +1259,34 @@
     return map;
   }
 
+  function buildCategoryMap() {
+    var map = {};
+    var reqs = (STATE.extractionResult && STATE.extractionResult.requirements) || [];
+    for (var i = 0; i < reqs.length; i++) {
+      map[reqs[i].id] = reqs[i].category || "";
+    }
+    return map;
+  }
+
+  function computeSkillsToSelect() {
+    if (!STATE.comparisonResult) return [];
+    var categoryMap = buildCategoryMap();
+    var list = STATE.comparisonResult.gapList || [];
+    var out = [];
+    var seen = {};
+    for (var i = 0; i < list.length; i++) {
+      var item = list[i];
+      var category = categoryMap[item.id];
+      var isSkillLike = category === "skill" || category === "certification";
+      var isConfirmed = item.status === "met" || item.status === "partial";
+      if (isSkillLike && isConfirmed && item.requirement && !seen[item.requirement]) {
+        seen[item.requirement] = true;
+        out.push(item.requirement);
+      }
+    }
+    return out;
+  }
+
   function computeMatchScore(gapList, importanceMap) {
     var total = gapList.length;
     if (total === 0) return { met: 0, total: 0, percent: 0, requiredMissed: 0 };
@@ -1274,6 +1342,7 @@
     STATE.comparisonResult = null;
     STATE.matchScore = null;
     STATE.salaryRecommendation = null;
+    STATE.skillsToSelect = [];
     STATE.dealbreakers = null;
     STATE.uiExpandedRows = {};
     $("results").classList.remove("show");
@@ -1416,8 +1485,52 @@
     renderScore();
     renderSalaryRecommendation();
     renderGapGrid();
+    renderSkillsToSelect();
     renderStructuralFindings();
     renderFitQuestions();
+  }
+
+  function renderSkillsToSelect() {
+    var container = $("skills-chip-list");
+    var btn = $("copy-skills-btn");
+    var skills = computeSkillsToSelect();
+    STATE.skillsToSelect = skills;
+    if (skills.length === 0) {
+      container.innerHTML = '<p class="empty-note">No confirmed hard skills or certifications to select for this posting.</p>';
+      btn.style.display = "none";
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < skills.length; i++) {
+      html += '<span class="skill-chip">' + escapeHtml(skills[i]) + '</span>';
+    }
+    container.innerHTML = html;
+    btn.style.display = "inline-block";
+    btn.textContent = "Copy list";
+  }
+
+  function copySkillsToClipboard() {
+    var btn = $("copy-skills-btn");
+    var skills = STATE.skillsToSelect || [];
+    if (skills.length === 0) return;
+    var text = skills.join(", ");
+    var onSuccess = function () {
+      btn.textContent = "Copied";
+      setTimeout(function () { btn.textContent = "Copy list"; }, 1500);
+    };
+    var onFailure = function () {
+      btn.textContent = "Copy failed, select manually";
+      setTimeout(function () { btn.textContent = "Copy list"; }, 2000);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(onSuccess).catch(onFailure);
+      } else {
+        onFailure();
+      }
+    } catch (err) {
+      onFailure();
+    }
   }
 
   function renderSalaryRecommendation() {
@@ -1481,6 +1594,7 @@
     });
     $("resume-status-edit").addEventListener("click", openSettings);
     $("print-btn").addEventListener("click", printReport);
+    $("copy-skills-btn").addEventListener("click", copySkillsToClipboard);
 
     $("analyze-btn").addEventListener("click", runAnalysis);
 
