@@ -753,6 +753,12 @@
     </section>
 
     <section class="block">
+      <h2 class="block-title">Consider Leaving Out</h2>
+      <p class="block-desc">Resume content that has no clear connection to this posting and could be trimmed to tighten it for this application.</p>
+      <div class="flag-list" id="leave-out-list"></div>
+    </section>
+
+    <section class="block">
       <h2 class="block-title">Fit Questions</h2>
       <p class="block-desc">Questions worth preparing an answer for before the interview.</p>
       <div class="fit-card">
@@ -847,7 +853,7 @@
     CLAUDE_MODEL: "claude-sonnet-5",
     API_URL: "https://api.anthropic.com/v1/messages",
     MAX_TOKENS_EXTRACTION: 3000,
-    MAX_TOKENS_COMPARISON: 4500,
+    MAX_TOKENS_COMPARISON: 5000,
     SALARY_MATCH_FLOOR: 60,
     SALARY_MATCH_CEILING: 90,
     STORAGE_KEY: "appaday-111-gap-analysis"
@@ -1134,6 +1140,7 @@
     "For workArrangement, classify the posting as remote only if it is explicitly fully remote with no office requirement, hybrid if it mentions a partial in-office expectation, onsite if it requires being in an office full time, or unstated if the posting never addresses location or work style. " +
     "For minYearsRequired, read the minimum years of relevant experience explicitly stated for the role, using the lowest number in a stated range (e.g. '5-7 years' becomes 5), or null if no years figure is stated. " +
     "Keep each requirement's text under 15 words to control output length, especially on long postings with many requirements. " +
+    "For requirements in the skill or certification category specifically, text must be a short canonical name only, at most 4 words, naming one specific tool, technology, language, platform, or certification, for example 'Excel', 'Salesforce', 'PMP Certification', 'Python'. If the posting lists several discrete tools or skills together, such as 'proficiency in Word, Excel, and PowerPoint', split them into separate requirement entries, one per tool, each in the skill category, rather than merging them into a single compound requirement. Other categories keep the fuller under-15-word phrasing. " +
     "Ignore boilerplate such as equal opportunity statements, applicant tracking system tags, benefits summaries, and company mission statements, they are not requirements. " +
     "Output the complete JSON object with no truncation, closing every brace and bracket.";
 
@@ -1143,7 +1150,8 @@
     "\"status\": one of \"met\",\"partial\",\"missing\", \"evidence\": string (a short paraphrase of what in the resume supports this, or empty string if missing), " +
     "\"rewrite\": string (see rewrite rules below)}], " +
     "\"structuralFindings\": [{\"issue\": string, \"severity\": one of \"high\",\"medium\",\"low\"}], " +
-    "\"fitQuestions\": [string]}. " +
+    "\"fitQuestions\": [string], " +
+    "\"considerLeavingOut\": [{\"item\": string (short paraphrase of the specific resume content in question), \"reason\": string (why it does not help this specific application)}]}. " +
     "Judge status strictly: only mark met when the resume clearly demonstrates it, partial when adjacent or weaker evidence exists, missing when absent. " +
     "If the user message states the candidate's location, treat any location, residency, relocation, or geographic eligibility requirement using that stated location as fact, not just what the resume text happens to say. " +
     "Rewrite rules, these are strict and override any instinct to be maximally impressive: a rewrite may ONLY rephrase, retitle, or reframe something the resume already states as true. Never invent a specific tool, software product, certification, metric, percentage, headcount, budget figure, or accomplishment that is not already present in the resume text, even as a plausible-sounding example. Do not \"create evidence\", only reframe evidence that exists. " +
@@ -1152,8 +1160,9 @@
     "For a missing requirement where the resume contains no genuinely adjacent experience to reframe, the rewrite field must instead be an honest sentence stating there is no current resume content to draw on, and suggest either what real experience to gain or how to address it directly in an interview or cover letter. It must never fabricate a bullet to fill the gap. " +
     "structuralFindings should flag resume-structure or ATS issues such as missing dates, no quantified impact, inconsistent formatting, or unclear titles, not requirement gaps. " +
     "fitQuestions should be interview-prep questions the candidate should be ready to answer given the gaps found. " +
+    "considerLeavingOut should identify specific resume content, a bullet, a role, a credential, a line of the summary, that has no clear connection to any of the requirements you were given or to the stated role context, and would be a reasonable candidate to cut or de-emphasize to tighten the resume for this specific application. Be conservative: only flag content that is genuinely tangential to this posting, not content that is merely less impressive, not core identity information like contact details or degrees, and not anything that supports a requirement even loosely. Paraphrase the actual resume content in item, never invent content that is not there. Cap this list at 5 entries, and return an empty array if nothing is clearly irrelevant. " +
     "Never quote large blocks of the resume verbatim, paraphrase evidence briefly. " +
-    "Keep every field tight to control output length: evidence under 20 words, rewrite under 25 words, each structuralFindings issue under 20 words, each fitQuestion under 20 words. " +
+    "Keep every field tight to control output length: evidence under 20 words, rewrite under 25 words, each structuralFindings issue under 20 words, each fitQuestion under 20 words, each considerLeavingOut item and reason under 15 words. " +
     "Budget your output across all requirements you were given, do not let early items consume the space later items need. " +
     "Output the complete JSON object with no truncation, closing every brace and bracket.";
 
@@ -1465,6 +1474,25 @@
     container.innerHTML = html;
   }
 
+  function renderLeaveOut() {
+    var container = $("leave-out-list");
+    if (!STATE.comparisonResult) { container.innerHTML = ""; return; }
+    var items = STATE.comparisonResult.considerLeavingOut || [];
+    if (items.length === 0) {
+      container.innerHTML = '<p class="empty-note">Nothing on this resume looked clearly irrelevant to this posting.</p>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < items.length; i++) {
+      var entry = items[i];
+      html += '<div class="flag-item sev-low">';
+      html += '  <span class="sev-tag">trim</span>';
+      html += '  <p><strong>' + escapeHtml(entry.item) + '</strong><br>' + escapeHtml(entry.reason) + '</p>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  }
+
   function printReport() {
     var header = $("print-header");
     var now = new Date();
@@ -1487,6 +1515,7 @@
     renderGapGrid();
     renderSkillsToSelect();
     renderStructuralFindings();
+    renderLeaveOut();
     renderFitQuestions();
   }
 
