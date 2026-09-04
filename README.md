@@ -26,6 +26,8 @@ When a posting states compensation, a Compensation card shows a specific suggest
 
 The resume itself is a saved setting rather than a per-analysis paste. Enter it once in Settings and it persists in `localStorage` across sessions, so only the job description changes day to day. A status bar on the main screen shows whether a resume is saved and its word count, with a one-tap link back into Settings to update it. The ranked Strengths list persists the same way.
 
+A contact-info check runs directly against the resume text with plain regular expressions, not the AI, checking for a detectable email address and phone number. It fires immediately on the main screen and live inside the Settings modal as you type or paste, independent of whether any analysis has been run, since this is exactly the kind of check that should never depend on the model remembering to look.
+
 ## Tech
 
 Single self-contained `index.html`. No frameworks, no build step. Google Fonts is the only external dependency. Calls the Anthropic API directly from the browser using the `anthropic-dangerous-direct-browser-access` header. API key, session name, and strengths scope preference are stored in `localStorage`, wrapped in try/catch. The ranked strengths list itself is session-only and never persisted.
