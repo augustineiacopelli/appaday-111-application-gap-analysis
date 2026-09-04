@@ -118,6 +118,22 @@
 
   .key-banner.show { display: block; }
 
+  .contact-warning {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--ink);
+    margin-bottom: 20px;
+    display: none;
+    font-weight: 500;
+  }
+
+  .contact-warning.show { display: block; }
+
+  .contact-warning strong { color: var(--accent); }
+
   .field-group { margin-bottom: 18px; }
 
   label.field-label {
@@ -709,6 +725,8 @@
     <button type="button" class="resume-status-edit" id="resume-status-edit">Edit in Settings</button>
   </div>
 
+  <div class="contact-warning" id="resume-warning"></div>
+
   <div class="field-group no-print">
     <label class="field-label" for="job-input">Job Description <span class="count" id="job-count">0 words</span></label>
     <textarea id="job-input" class="jobdesc" placeholder="Paste the job posting text here"></textarea>
@@ -809,6 +827,7 @@
     <div class="field-group">
       <label class="simple" for="core-resume-input">Core Resume <span class="count" id="core-resume-count" style="text-transform: none; letter-spacing: 0;">0 words</span></label>
       <textarea id="core-resume-input" class="strengths-input" style="min-height: 160px;" placeholder="Paste your resume once. It stays saved here and gets reused for every job description you analyze."></textarea>
+      <div class="contact-warning" id="core-resume-warning" style="margin-top: 10px; margin-bottom: 0;"></div>
     </div>
 
     <div class="field-group">
@@ -1000,6 +1019,8 @@
   function openSettings() {
     $("core-resume-input").value = STATE.resumeText;
     $("core-resume-count").textContent = countWords(STATE.resumeText) + " words";
+    var initialCheck = checkResumeContactInfo(STATE.resumeText);
+    renderContactWarning("core-resume-warning", STATE.resumeText.trim().length > 0 ? initialCheck.missing : []);
     $("api-key-input").value = STATE.apiKey;
     $("session-name-input").value = STATE.sessionName;
     var radios = document.querySelectorAll('input[name="strengths-scope"]');
@@ -1050,6 +1071,30 @@
     closeSettings();
   }
 
+  function checkResumeContactInfo(text) {
+    var t = text || "";
+    var emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+    var phonePattern = /(\+?\d{1,2}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/;
+    var hasEmail = emailPattern.test(t);
+    var hasPhone = phonePattern.test(t);
+    var missing = [];
+    if (!hasEmail) missing.push("Email address");
+    if (!hasPhone) missing.push("Phone number");
+    return { hasEmail: hasEmail, hasPhone: hasPhone, missing: missing };
+  }
+
+  function renderContactWarning(elementId, missing) {
+    var el = $(elementId);
+    if (!el) return;
+    if (missing.length === 0) {
+      el.classList.remove("show");
+      el.innerHTML = "";
+      return;
+    }
+    el.innerHTML = "Missing from your saved resume: <strong>" + escapeHtml(missing.join(", ")) + "</strong>. This is checked directly against the resume text, not the AI, so it catches every time.";
+    el.classList.add("show");
+  }
+
   function renderResumeStatus() {
     var el = $("resume-status");
     var text = $("resume-status-text");
@@ -1061,6 +1106,8 @@
       el.classList.remove("has-resume");
       text.textContent = "No resume saved";
     }
+    var contactCheck = checkResumeContactInfo(STATE.resumeText);
+    renderContactWarning("resume-warning", words > 0 ? contactCheck.missing : []);
   }
 
   function updateWordCounts() {
@@ -1768,7 +1815,10 @@
       STATE.roleContext = $("role-context").value;
     });
     $("core-resume-input").addEventListener("input", function () {
-      $("core-resume-count").textContent = countWords($("core-resume-input").value) + " words";
+      var val = $("core-resume-input").value;
+      $("core-resume-count").textContent = countWords(val) + " words";
+      var check = checkResumeContactInfo(val);
+      renderContactWarning("core-resume-warning", val.trim().length > 0 ? check.missing : []);
     });
     $("resume-status-edit").addEventListener("click", openSettings);
     $("print-btn").addEventListener("click", printReport);
