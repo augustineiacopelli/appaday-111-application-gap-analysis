@@ -920,7 +920,7 @@
     CLAUDE_MODEL_COVER_LETTER: "claude-opus-5-5",
     API_URL: "https://api.anthropic.com/v1/messages",
     MAX_TOKENS_EXTRACTION: 3000,
-    MAX_TOKENS_COMPARISON: 5500,
+    MAX_TOKENS_COMPARISON: 8000,
     MAX_TOKENS_COVER_LETTER: 2200,
     SALARY_MATCH_FLOOR: 60,
     SALARY_MATCH_CEILING: 90,
@@ -1289,7 +1289,8 @@
     "structuralFindings should flag resume-structure or ATS issues such as missing dates, no quantified impact, inconsistent formatting, or unclear titles, not requirement gaps. " +
     "fitQuestions should be interview-prep questions the candidate should be ready to answer given the gaps found. " +
     "considerLeavingOut should identify specific resume content, a bullet, a role, a credential, a line of the summary, that has no clear connection to any of the requirements you were given or to the stated role context, and would be a reasonable candidate to cut or de-emphasize to tighten the resume for this specific application. Be conservative: only flag content that is genuinely tangential to this posting, not content that is merely less impressive, not core identity information like contact details or degrees, and not anything that supports a requirement even loosely. Paraphrase the actual resume content in item, never invent content that is not there. Cap this list at 5 entries, and return an empty array if nothing is clearly irrelevant. " +
-    "Keep every field tight to control output length: evidenceQuote under 20 words, location under 10 words, rewrite under 25 words, each structuralFindings issue under 20 words, each fitQuestion under 20 words, each considerLeavingOut item and reason under 15 words. " +
+    "Keep every field tight to control output length: evidenceQuote under 20 words, location under 10 words, rewrite under 25 words, each structuralFindings issue under 20 words, each fitQuestion under 20 words, each considerLeavingOut item and reason under 15 words. These are hard limits, not targets to aim near, exceeding them risks the response being cut off before the JSON closes. " +
+    "Output nothing but the JSON object itself, no preamble, no closing remarks, no explanation of your reasoning before or after it. " +
     "Budget your output across all requirements you were given, do not let early items consume the space later items need. " +
     "Output the complete JSON object with no truncation, closing every brace and bracket.";
 
@@ -1380,7 +1381,7 @@
       .then(function (raw) {
         var parsed = parseJsonSafe(raw);
         if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.requirements)) {
-          console.error("Extraction parse failure. Reason:", parsed.error, "Raw response:", raw);
+          console.error("Extraction parse failure. Reason:", parsed.error, "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
           throw new Error("parse_failure");
         }
         STATE.extractionResult = parsed.data;
@@ -1401,7 +1402,7 @@
       .then(function (raw) {
         var parsed = parseJsonSafe(raw);
         if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.gapList)) {
-          console.error("Comparison parse failure. Reason:", parsed.error, "Raw response:", raw);
+          console.error("Comparison parse failure. Reason:", parsed.error, "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
           throw new Error("parse_failure");
         }
         STATE.comparisonResult = parsed.data;
