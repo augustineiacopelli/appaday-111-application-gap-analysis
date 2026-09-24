@@ -915,6 +915,9 @@
 
   var CONFIG = {
     CLAUDE_MODEL: "claude-sonnet-5",
+    CLAUDE_MODEL_EXTRACTION: "claude-sonnet-5",
+    CLAUDE_MODEL_COMPARISON: "claude-opus-5-5",
+    CLAUDE_MODEL_COVER_LETTER: "claude-opus-5-5",
     API_URL: "https://api.anthropic.com/v1/messages",
     MAX_TOKENS_EXTRACTION: 3000,
     MAX_TOKENS_COMPARISON: 5500,
@@ -1151,9 +1154,9 @@
     }
   }
 
-  function callClaude(systemPrompt, userMessage, maxTokens, tools) {
+  function callClaude(systemPrompt, userMessage, maxTokens, tools, model) {
     var body = {
-      model: CONFIG.CLAUDE_MODEL,
+      model: model || CONFIG.CLAUDE_MODEL,
       max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }]
@@ -1328,7 +1331,7 @@
     $("cover-letter-output").style.display = "none";
     setCoverLetterStage("loading", "Researching the company and drafting a first pass...");
     var tools = [{ type: "web_search_20250305", name: "web_search" }];
-    callClaude(COVER_LETTER_SYSTEM_PROMPT, buildCoverLetterUserMessage(), CONFIG.MAX_TOKENS_COVER_LETTER, tools)
+    callClaude(COVER_LETTER_SYSTEM_PROMPT, buildCoverLetterUserMessage(), CONFIG.MAX_TOKENS_COVER_LETTER, tools, CONFIG.CLAUDE_MODEL_COVER_LETTER)
       .then(function (raw) {
         var text = stripCodeFences(raw);
         if (!text) {
@@ -1373,7 +1376,7 @@
 
   function extractRequirements() {
     setStage("extracting", "Reading the job description and extracting requirements...");
-    return callClaude(EXTRACTION_SYSTEM_PROMPT, STATE.jobText, CONFIG.MAX_TOKENS_EXTRACTION)
+    return callClaude(EXTRACTION_SYSTEM_PROMPT, STATE.jobText, CONFIG.MAX_TOKENS_EXTRACTION, null, CONFIG.CLAUDE_MODEL_EXTRACTION)
       .then(function (raw) {
         var parsed = parseJsonSafe(raw);
         if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.requirements)) {
@@ -1394,7 +1397,7 @@
       (STATE.location ? "\n\nCandidate's stated location: " + STATE.location + ". Use this fact for any requirement about location, residency, relocation, or geographic eligibility, even if the resume itself does not mention it. Do not mark a location requirement as missing solely because the resume is silent on it." : "") +
       (STATE.roleContext ? "\n\nRole context from candidate: " + STATE.roleContext : "") +
       buildStrengthsBlock();
-    return callClaude(COMPARISON_SYSTEM_PROMPT, userMessage, CONFIG.MAX_TOKENS_COMPARISON)
+    return callClaude(COMPARISON_SYSTEM_PROMPT, userMessage, CONFIG.MAX_TOKENS_COMPARISON, null, CONFIG.CLAUDE_MODEL_COMPARISON)
       .then(function (raw) {
         var parsed = parseJsonSafe(raw);
         if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.gapList)) {
