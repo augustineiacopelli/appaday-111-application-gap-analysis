@@ -400,6 +400,19 @@
   .status-badge.partial { background: rgba(184, 134, 11, 0.14); color: var(--gold); }
   .status-badge.missing { background: var(--accent-dim); color: var(--accent); }
 
+  .verify-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 400;
+  }
+
+  .verify-badge.verify-ok { background: var(--green-dim); color: var(--green); }
+  .verify-badge.verify-warn { background: rgba(184, 134, 11, 0.14); color: var(--gold); }
+
   .expand-arrow {
     font-family: 'DM Mono', monospace;
     color: var(--muted);
@@ -904,7 +917,7 @@
     CLAUDE_MODEL: "claude-sonnet-5",
     API_URL: "https://api.anthropic.com/v1/messages",
     MAX_TOKENS_EXTRACTION: 3000,
-    MAX_TOKENS_COMPARISON: 5000,
+    MAX_TOKENS_COMPARISON: 5500,
     MAX_TOKENS_COVER_LETTER: 2200,
     SALARY_MATCH_FLOOR: 60,
     SALARY_MATCH_CEILING: 90,
@@ -1255,7 +1268,8 @@
   var COMPARISON_SYSTEM_PROMPT = "You compare a candidate resume against a fixed list of job requirements and produce a gap analysis. " +
     "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
     "The JSON shape must be exactly: {\"gapList\": [{\"id\": string matching a requirement id you were given, \"requirement\": string, " +
-    "\"status\": one of \"met\",\"partial\",\"missing\", \"evidence\": string (a short paraphrase of what in the resume supports this, or empty string if missing), " +
+    "\"status\": one of \"met\",\"partial\",\"missing\", \"evidenceQuote\": string (an exact, character-for-character quote copied from the candidate resume text, or empty string if missing), " +
+    "\"location\": string (which section, role, or bullet the quote comes from, or where in the resume to add new content if missing), " +
     "\"rewrite\": string (see rewrite rules below)}], " +
     "\"structuralFindings\": [{\"issue\": string, \"severity\": one of \"high\",\"medium\",\"low\"}], " +
     "\"fitQuestions\": [string], " +
@@ -1263,15 +1277,16 @@
     "Judge status strictly: only mark met when the resume clearly demonstrates it, partial when adjacent or weaker evidence exists, missing when absent. " +
     "Some requirement text will name several alternative tools or technologies, for example 'SQL/Python/R/statistical software' or 'BI tool (Tableau/Power BI/Looker)'. This means any one of the named alternatives, or a clearly equivalent tool in that same category, satisfies the requirement. Mark it met if the resume clearly demonstrates genuine experience with any single one of them, do not require all of them, and do not mark it partial or missing just because the resume lacks the others. " +
     "If the user message states the candidate's location, treat any location, residency, relocation, or geographic eligibility requirement using that stated location as fact, not just what the resume text happens to say. " +
+    "evidenceQuote must be copied exactly, character for character, from the resume text you were given, never paraphrased or summarized. If the supporting text is longer than needed, copy the single most relevant excerpt under 20 words rather than paraphrasing it shorter. If nothing in the resume supports this requirement, evidenceQuote must be an empty string, do not substitute a paraphrase or a guess. " +
+    "location must name where evidenceQuote came from, using the resume's own section or role headers, for example 'Director, Satellite Campuses, bullet 3' or 'Summary paragraph'. If status is missing, location instead names where a new bullet could reasonably be added, for example 'Add under Director, Satellite Campuses'. Keep location under 10 words. " +
     "Rewrite rules, these are strict and override any instinct to be maximally impressive: a rewrite may ONLY rephrase, retitle, or reframe something the resume already states as true. Never invent a specific tool, software product, certification, metric, percentage, headcount, budget figure, or accomplishment that is not already present in the resume text, even as a plausible-sounding example. Do not \"create evidence\", only reframe evidence that exists. " +
-    "For a met requirement, the rewrite may tighten or sharpen the existing true bullet. " +
-    "For a partial requirement, the rewrite may reframe the adjacent true experience using the requirement's own terminology, without claiming direct use of a tool or metric the resume never mentions, for example describing existing spreadsheet automation as comparable to a named tool the posting wants is acceptable, claiming the candidate used that named tool is not. " +
+    "For a met requirement, the rewrite may tighten or sharpen the existing true bullet. Phrase it as a direct replacement for the bullet named in location. " +
+    "For a partial requirement, the rewrite may reframe the adjacent true experience using the requirement's own terminology, without claiming direct use of a tool or metric the resume never mentions, for example describing existing spreadsheet automation as comparable to a named tool the posting wants is acceptable, claiming the candidate used that named tool is not. Phrase it as a direct replacement for the bullet named in location. " +
     "For a missing requirement where the resume contains no genuinely adjacent experience to reframe, the rewrite field must instead be an honest sentence stating there is no current resume content to draw on, and suggest either what real experience to gain or how to address it directly in an interview or cover letter. It must never fabricate a bullet to fill the gap. " +
     "structuralFindings should flag resume-structure or ATS issues such as missing dates, no quantified impact, inconsistent formatting, or unclear titles, not requirement gaps. " +
     "fitQuestions should be interview-prep questions the candidate should be ready to answer given the gaps found. " +
     "considerLeavingOut should identify specific resume content, a bullet, a role, a credential, a line of the summary, that has no clear connection to any of the requirements you were given or to the stated role context, and would be a reasonable candidate to cut or de-emphasize to tighten the resume for this specific application. Be conservative: only flag content that is genuinely tangential to this posting, not content that is merely less impressive, not core identity information like contact details or degrees, and not anything that supports a requirement even loosely. Paraphrase the actual resume content in item, never invent content that is not there. Cap this list at 5 entries, and return an empty array if nothing is clearly irrelevant. " +
-    "Never quote large blocks of the resume verbatim, paraphrase evidence briefly. " +
-    "Keep every field tight to control output length: evidence under 20 words, rewrite under 25 words, each structuralFindings issue under 20 words, each fitQuestion under 20 words, each considerLeavingOut item and reason under 15 words. " +
+    "Keep every field tight to control output length: evidenceQuote under 20 words, location under 10 words, rewrite under 25 words, each structuralFindings issue under 20 words, each fitQuestion under 20 words, each considerLeavingOut item and reason under 15 words. " +
     "Budget your output across all requirements you were given, do not let early items consume the space later items need. " +
     "Output the complete JSON object with no truncation, closing every brace and bracket.";
 
@@ -1596,6 +1611,14 @@
     return div.innerHTML;
   }
 
+  function verifyQuoteInResume(quote) {
+    var normalize = function (s) { return (s || "").toLowerCase().replace(/\s+/g, " ").trim(); };
+    var normQuote = normalize(quote);
+    if (!normQuote) return null;
+    var normResume = normalize(STATE.resumeText);
+    return normResume.indexOf(normQuote) !== -1;
+  }
+
   function renderGapGrid() {
     var container = $("gap-grid");
     if (!STATE.comparisonResult) { container.innerHTML = ""; return; }
@@ -1610,6 +1633,7 @@
       var item = list[i];
       var expanded = !!STATE.uiExpandedRows[item.id];
       var isRequired = importanceMap[item.id] === "required";
+      var verified = verifyQuoteInResume(item.evidenceQuote);
       html += '<div class="gap-row' + (expanded ? " expanded" : "") + '" data-row-id="' + escapeHtml(item.id) + '">';
       html += '  <div class="gap-row-head" data-toggle-id="' + escapeHtml(item.id) + '">';
       html += '    <span class="req-text">' + escapeHtml(item.requirement) + (isRequired ? ' <span class="importance-tag">required</span>' : '') + '</span>';
@@ -1617,8 +1641,15 @@
       html += '    <span class="expand-arrow">&#9656;</span>';
       html += '  </div>';
       html += '  <div class="gap-row-body">';
-      html += '    <div class="sub-label">Evidence in resume</div>';
-      html += '    <p class="evidence">' + (item.evidence ? escapeHtml(item.evidence) : "None found") + '</p>';
+      if (item.location) {
+        html += '    <div class="sub-label">Where</div>';
+        html += '    <p>' + escapeHtml(item.location) + '</p>';
+      }
+      html += '    <div class="sub-label">Evidence quoted from your resume';
+      if (verified === true) html += ' <span class="verify-badge verify-ok">verified word-for-word</span>';
+      if (verified === false) html += ' <span class="verify-badge verify-warn">not found exactly, treat as paraphrased</span>';
+      html += '</div>';
+      html += '    <p class="evidence">' + (item.evidenceQuote ? '"' + escapeHtml(item.evidenceQuote) + '"' : "None found") + '</p>';
       html += '    <div class="sub-label">Suggested rewrite (grounded in your resume, never invented)</div>';
       html += '    <p>' + escapeHtml(item.rewrite || "No suggestion returned") + '</p>';
       html += '  </div>';
