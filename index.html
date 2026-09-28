@@ -450,6 +450,15 @@
     padding-left: 10px;
   }
 
+  .gap-row-body .shared-edit-note {
+    font-size: 12.5px;
+    color: var(--gold);
+    background: rgba(184, 134, 11, 0.1);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-top: 4px;
+  }
+
   .flag-list { display: grid; gap: 10px; }
 
   .flag-item {
@@ -1277,8 +1286,9 @@
     "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
     "The JSON shape must be exactly: {\"gapList\": [{\"id\": string matching a requirement id you were given, \"requirement\": string, " +
     "\"status\": one of \"met\",\"partial\",\"missing\", \"evidenceQuote\": string (an exact, character-for-character quote copied from the candidate resume text, or empty string if missing), " +
-    "\"location\": string (which section, role, or bullet the quote comes from, or where in the resume to add new content if missing), " +
-    "\"rewrite\": string (see rewrite rules below)}], " +
+    "\"location\": string (which section, role, or bullet the quote comes from, or where in the resume to add new content if missing)}], " +
+    "\"resumeEdits\": [{\"location\": string (must match, character for character, the location string of at least one gapList item this edit addresses), " +
+    "\"rewrite\": string (see rewrite rules below), \"requirementIds\": [array of one or more gapList id strings this single edit addresses]}], " +
     "\"structuralFindings\": [{\"issue\": string, \"severity\": one of \"high\",\"medium\",\"low\"}], " +
     "\"fitQuestions\": [string], " +
     "\"considerLeavingOut\": [{\"item\": string (short paraphrase of the specific resume content in question), \"reason\": string (why it does not help this specific application)}]}. " +
@@ -1287,14 +1297,16 @@
     "If the user message states the candidate's location, treat any location, residency, relocation, or geographic eligibility requirement using that stated location as fact, not just what the resume text happens to say. " +
     "evidenceQuote must be copied exactly, character for character, from the resume text you were given, never paraphrased or summarized. If the supporting text is longer than needed, copy the single most relevant excerpt under 20 words rather than paraphrasing it shorter. If nothing in the resume supports this requirement, evidenceQuote must be an empty string, do not substitute a paraphrase or a guess. " +
     "location must name where evidenceQuote came from, using the resume's own section or role headers, for example 'Director, Satellite Campuses, bullet 3' or 'Summary paragraph'. If status is missing, location instead names where a new bullet could reasonably be added, for example 'Add under Director, Satellite Campuses'. Keep location under 10 words. " +
+    "One resume bullet or line gets ONE edit, never more than one. Before writing resumeEdits, group the gapList items by their location string: if two or more items resolved to the exact same bullet or line, they must be handled by a single resumeEdits entry covering all of their requirementIds together, not by separate entries that would each tell the candidate to rewrite the same line differently. Each gapList id you assign a rewrite to may appear in at most one resumeEdits entry. Only create a resumeEdits entry for an item when a rewrite is genuinely useful, skip items that are already strongly met and need no change. " +
     "Rewrite rules, these are strict and override any instinct to be maximally impressive: a rewrite may ONLY rephrase, retitle, or reframe something the resume already states as true. Never invent a specific tool, software product, certification, metric, percentage, headcount, budget figure, or accomplishment that is not already present in the resume text, even as a plausible-sounding example. Do not \"create evidence\", only reframe evidence that exists. " +
     "For a met requirement, the rewrite may tighten or sharpen the existing true bullet. Phrase it as a direct replacement for the bullet named in location. " +
     "For a partial requirement, the rewrite may reframe the adjacent true experience using the requirement's own terminology, without claiming direct use of a tool or metric the resume never mentions, for example describing existing spreadsheet automation as comparable to a named tool the posting wants is acceptable, claiming the candidate used that named tool is not. Phrase it as a direct replacement for the bullet named in location. " +
     "For a missing requirement where the resume contains no genuinely adjacent experience to reframe, the rewrite field must instead be an honest sentence stating there is no current resume content to draw on, and suggest either what real experience to gain or how to address it directly in an interview or cover letter. It must never fabricate a bullet to fill the gap. " +
+    "When one resumeEdits entry covers more than one requirementId, write a single rewrite that genuinely serves all of them together, phrased as one direct replacement for the bullet named in location. If the requirements pulling on that one bullet are too different to honestly serve with a single sentence, say so plainly in the rewrite and suggest splitting it into two bullets instead of silently picking only one requirement to satisfy. " +
     "structuralFindings should flag resume-structure or ATS issues such as missing dates, no quantified impact, inconsistent formatting, or unclear titles, not requirement gaps. " +
     "fitQuestions should be interview-prep questions the candidate should be ready to answer given the gaps found. " +
     "considerLeavingOut should identify specific resume content, a bullet, a role, a credential, a line of the summary, that has no clear connection to any of the requirements you were given or to the stated role context, and would be a reasonable candidate to cut or de-emphasize to tighten the resume for this specific application. Be conservative: only flag content that is genuinely tangential to this posting, not content that is merely less impressive, not core identity information like contact details or degrees, and not anything that supports a requirement even loosely. Paraphrase the actual resume content in item, never invent content that is not there. Cap this list at 5 entries, and return an empty array if nothing is clearly irrelevant. " +
-    "Keep every field tight to control output length: evidenceQuote under 20 words, location under 10 words, rewrite under 25 words, each structuralFindings issue under 20 words, each fitQuestion under 20 words, each considerLeavingOut item and reason under 15 words. These are hard limits, not targets to aim near, exceeding them risks the response being cut off before the JSON closes. " +
+    "Keep every field tight to control output length: evidenceQuote under 20 words, location under 10 words, rewrite under 30 words, each structuralFindings issue under 20 words, each fitQuestion under 20 words, each considerLeavingOut item and reason under 15 words. These are hard limits, not targets to aim near, exceeding them risks the response being cut off before the JSON closes. " +
     "Output nothing but the JSON object itself, no preamble, no closing remarks, no explanation of your reasoning before or after it. " +
     "Budget your output across all requirements you were given, do not let early items consume the space later items need. " +
     "Output the complete JSON object with no truncation, closing every brace and bracket.";
@@ -1410,10 +1422,57 @@
           console.error("Comparison parse failure. Reason:", parsed.error, "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
           throw new Error("parse_failure");
         }
+        parsed.data.resumeEdits = consolidateResumeEdits(parsed.data.resumeEdits, parsed.data.gapList);
         STATE.comparisonResult = parsed.data;
         STATE.matchScore = computeMatchScore(parsed.data.gapList, buildImportanceMap());
         STATE.salaryRecommendation = computeSalaryRecommendation(STATE.extractionResult.salary, STATE.matchScore.percent);
       });
+  }
+
+  // Client-side safety net: never trust the model alone to have grouped same-bullet
+  // edits together. Normalizes the resumeEdits array so that (a) every entry has a
+  // sane shape, (b) no gapList id is claimed by more than one edit, and (c) any two
+  // entries that ended up pointing at the same resume location get merged into one,
+  // even if the model returned them separately.
+  function consolidateResumeEdits(rawEdits, gapList) {
+    var edits = Array.isArray(rawEdits) ? rawEdits : [];
+    var validIds = {};
+    for (var g = 0; g < (gapList || []).length; g++) validIds[gapList[g].id] = true;
+
+    function normLoc(s) {
+      return (s || "").toString().trim().toLowerCase().replace(/\s+/g, " ");
+    }
+
+    var byLoc = {};
+    var order = [];
+    var claimedIds = {};
+
+    for (var i = 0; i < edits.length; i++) {
+      var e = edits[i];
+      if (!e || typeof e.rewrite !== "string" || !e.rewrite.trim()) continue;
+      var ids = Array.isArray(e.requirementIds) ? e.requirementIds.filter(function (id) { return validIds[id]; }) : [];
+      // Drop any id already claimed by an earlier entry so one bullet is never edited twice.
+      ids = ids.filter(function (id) { return !claimedIds[id]; });
+      if (ids.length === 0) continue;
+      for (var k = 0; k < ids.length; k++) claimedIds[ids[k]] = true;
+
+      var key = normLoc(e.location);
+      if (byLoc[key]) {
+        // Same bullet already has an edit queued (model split it into two entries) - merge.
+        var existing = byLoc[key];
+        for (var m = 0; m < ids.length; m++) {
+          if (existing.requirementIds.indexOf(ids[m]) === -1) existing.requirementIds.push(ids[m]);
+        }
+        if (existing.rewrite.trim() !== e.rewrite.trim()) {
+          existing.rewrite = existing.rewrite.trim() + " " + e.rewrite.trim();
+        }
+      } else {
+        var entry = { location: e.location || "", rewrite: e.rewrite.trim(), requirementIds: ids.slice() };
+        byLoc[key] = entry;
+        order.push(entry);
+      }
+    }
+    return order;
   }
 
   function evaluateDealbreakers(extraction) {
@@ -1638,11 +1697,19 @@
     }
     var html = "";
     var importanceMap = buildImportanceMap();
+    var editByReqId = {};
+    var edits = (STATE.comparisonResult.resumeEdits || []);
+    for (var e = 0; e < edits.length; e++) {
+      for (var r = 0; r < edits[e].requirementIds.length; r++) {
+        editByReqId[edits[e].requirementIds[r]] = edits[e];
+      }
+    }
     for (var i = 0; i < list.length; i++) {
       var item = list[i];
       var expanded = !!STATE.uiExpandedRows[item.id];
       var isRequired = importanceMap[item.id] === "required";
       var verified = verifyQuoteInResume(item.evidenceQuote);
+      var edit = editByReqId[item.id];
       html += '<div class="gap-row' + (expanded ? " expanded" : "") + '" data-row-id="' + escapeHtml(item.id) + '">';
       html += '  <div class="gap-row-head" data-toggle-id="' + escapeHtml(item.id) + '">';
       html += '    <span class="req-text">' + escapeHtml(item.requirement) + (isRequired ? ' <span class="importance-tag">required</span>' : '') + '</span>';
@@ -1660,7 +1727,23 @@
       html += '</div>';
       html += '    <p class="evidence">' + (item.evidenceQuote ? '"' + escapeHtml(item.evidenceQuote) + '"' : "None found") + '</p>';
       html += '    <div class="sub-label">Suggested rewrite (grounded in your resume, never invented)</div>';
-      html += '    <p>' + escapeHtml(item.rewrite || "No suggestion returned") + '</p>';
+      if (edit) {
+        html += '    <p>' + escapeHtml(edit.rewrite) + '</p>';
+        if (edit.requirementIds.length > 1) {
+          var otherReqs = [];
+          for (var o = 0; o < edit.requirementIds.length; o++) {
+            if (edit.requirementIds[o] === item.id) continue;
+            var otherItem = null;
+            for (var s = 0; s < list.length; s++) { if (list[s].id === edit.requirementIds[o]) { otherItem = list[s]; break; } }
+            otherReqs.push(otherItem ? otherItem.requirement : edit.requirementIds[o]);
+          }
+          if (otherReqs.length > 0) {
+            html += '    <p class="shared-edit-note">This same edit also covers: ' + escapeHtml(otherReqs.join(", ")) + '. Make this change once, not once per requirement.</p>';
+          }
+        }
+      } else {
+        html += '    <p>No suggestion returned</p>';
+      }
       html += '  </div>';
       html += '</div>';
     }
