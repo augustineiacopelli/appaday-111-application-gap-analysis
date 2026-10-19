@@ -847,13 +847,49 @@
   .rank-bar .band-mid { background: var(--gold); }
   .rank-bar .band-low { background: var(--accent); }
 
+  .rank-actions {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    margin: 14px -16px 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .rank-action + .rank-action { border-left: 1px solid var(--rule); }
+  .rank-action.secondary { color: var(--muted); font-weight: 500; }
+  .rank-action.secondary:hover { color: var(--accent); }
+
+  .ranking-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .ranking-tools:empty { display: none; }
+
+  .tool-btn {
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 9px;
+    border: 1px solid var(--rule);
+    background: var(--card-bg);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .tool-btn:hover { border-color: var(--accent-mid); color: var(--accent); }
+  .tool-btn.confirming { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+
   .rank-action {
     display: block;
-    width: calc(100% + 32px);
-    margin: 14px -16px 0;
+    width: 100%;
+    margin: 0;
     min-height: 46px;
     border: none;
-    border-top: 1px solid var(--rule);
     background: transparent;
     font-family: 'DM Sans', sans-serif;
     font-weight: 600;
@@ -972,6 +1008,7 @@
     </div>
     <h2 class="block-title">Ranked Shortlist</h2>
     <p class="block-desc">Ordered by weighted match score, fewer missing required items breaking ties. Below 60% a posting likely will not clear an ATS screen. Postings that fail a deal breaker drop to the bottom and skip the comparison step entirely. Open any row for its full report.</p>
+    <div class="ranking-tools no-print" id="ranking-tools"></div>
     <ol class="ranking-list" id="ranking-list"></ol>
   </section>
 
@@ -1167,6 +1204,10 @@
     batch: null,
     batchRunning: false,
     activeBatchId: null,
+    nextBatchIndex: 1,
+    lastSkippedDuplicates: 0,
+    confirmingClear: false,
+    lastSingle: null,
     reportToken: 0,
     roleContext: "",
     extractionResult: null,
@@ -1396,10 +1437,18 @@
     var atMax = STATE.postings.length >= CONFIG.MAX_POSTINGS;
     $("add-posting-btn").disabled = atMax;
     $("add-posting-btn").textContent = atMax ? "Maximum of " + CONFIG.MAX_POSTINGS + " postings reached" : "+ Add another posting";
-    $("postings-hint").textContent = multi
-      ? "Each posting runs its own full analysis, so five postings cost about five single runs. Any posting that fails a deal breaker skips the comparison step and costs far less."
-      : "Add more postings to analyze up to " + CONFIG.MAX_POSTINGS + " at once and get them back ranked by match.";
+    updatePostingsHint();
     validateAnalyzeButton();
+  }
+
+  function updatePostingsHint() {
+    var multi = STATE.postings.length > 1;
+    var hasShortlist = !!(STATE.batch && STATE.batch.length > 0);
+    $("postings-hint").textContent = hasShortlist
+      ? "Postings you paste here join your shortlist below and get ranked alongside the ones already there. Anything already on the list is skipped."
+      : multi
+        ? "Each posting runs its own full analysis, so five postings cost about five single runs. Any posting that fails a deal breaker skips the comparison step and costs far less."
+        : "Add more postings to analyze up to " + CONFIG.MAX_POSTINGS + " at once and get them back ranked by match.";
   }
 
   function onPostingInput(ev) {
@@ -1419,7 +1468,9 @@
     var ok = STATE.resumeText.trim().length > 0 && n > 0 && !STATE.batchRunning;
     var btn = $("analyze-btn");
     btn.disabled = !ok;
+    var hasShortlist = !!(STATE.batch && STATE.batch.length > 0);
     if (STATE.batchRunning) btn.textContent = "Analyzing...";
+    else if (hasShortlist) btn.textContent = n > 1 ? "Add " + n + " Postings to Shortlist" : "Add to Shortlist";
     else btn.textContent = n > 1 ? "Analyze and Rank " + n + " Postings" : "Analyze";
   }
 
@@ -1556,7 +1607,8 @@
     "Pattern two, an OR-list or example-list: the posting names one underlying capability and lists interchangeable examples of it, typically signaled by 'or', 'such as', 'like', or a parenthetical starting with 'e.g.', for example 'Experience with SQL or other programming/statistical software (e.g., Python, R, SAS, Stata)' or 'BI tools such as Tableau, Power BI, or Looker'. Keep this as ONE single requirement entry, do not split it, name it after the general capability plus the listed examples, for example 'SQL/Python/R/statistical software' or 'BI tool (Tableau/Power BI/Looker)'. " +
     "When unsure which pattern applies, prefer treating it as an OR-list, since that is the far more common phrasing in job postings and incorrectly splitting an OR-list punishes the candidate's score for not having every example. " +
     "Other categories keep the fuller under-15-word phrasing. " +
-    "Ignore boilerplate such as equal opportunity statements, applicant tracking system tags, benefits summaries, and company mission statements, they are not requirements. " +
+    "When building the requirements list only, ignore boilerplate such as equal opportunity statements, applicant tracking system tags, benefits summaries, and company mission statements, they are not requirements. " +
+    "That boilerplate rule never applies to salary, travelPercent, workArrangement, or minYearsRequired: search the ENTIRE posting for those, top to bottom. Salary is very often stated at the very end of a posting, after the job description, sometimes sitting between legal, benefits, fraud-warning, or AI-disclosure text, and labeled in many ways such as 'Expected Salary Range', 'Pay Range', 'Compensation', 'Base Pay', or 'Hiring Range'. Any dollar amount or range labeled as pay counts as stated. " +
     "Output the complete JSON object with no truncation, closing every brace and bracket.";
 
   var COMPARISON_SYSTEM_PROMPT = "You compare a candidate resume against a fixed list of job requirements and produce a gap analysis. " +
@@ -1638,6 +1690,7 @@
         }
         var owner = findBatchItem(draftedForId);
         if (owner) owner.coverLetter = text;
+        else if (STATE.lastSingle && STATE.reportToken === draftedForToken) STATE.lastSingle.coverLetter = text;
         if (STATE.reportToken !== draftedForToken) return;
         STATE.coverLetter = text;
         showCoverLetter(text);
@@ -1700,8 +1753,141 @@
           console.error("Extraction parse failure. Reason:", parsed.error, "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
           throw new Error("parse_failure");
         }
-        return parsed.data;
+        return reconcileSalary(parsed.data, jobText);
       });
+  }
+
+  // ---------- Deterministic salary backstop ----------
+  // A stated salary is a plain fact sitting in the posting text, so it should never
+  // depend on the model noticing it. This scans the raw text with regular expressions
+  // and fills in the salary whenever the model missed it.
+
+  var HOURS_PER_YEAR = 2080;
+
+  function parseMoneyValue(numStr, kSuffix) {
+    var n = parseFloat(String(numStr).replace(/,/g, ""));
+    if (isNaN(n)) return null;
+    if (kSuffix) n *= 1000;
+    return n;
+  }
+
+  function scanSalaryFromText(text) {
+    if (!text) return null;
+    // Normalize every dash variant (en, em, figure, minus) to a hyphen.
+    var t = String(text).replace(/[\u2010-\u2015\u2212]/g, "-");
+    var NUM = "(\\d{1,3}(?:,\\d{3})+(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)";
+    var rangeRe = new RegExp("\\$\\s?" + NUM + "\\s?([kK])?\\s*(?:-|to)\\s*(?:USD\\s*)?\\$?\\s?" + NUM + "\\s?([kK])?", "gi");
+    var singleRe = new RegExp("\\$\\s?" + NUM + "\\s?([kK])?", "gi");
+    var KEYWORD = /salary|pay\b|pay range|compensation|wage|base|hiring range|annual|hourly|per year|per hour|earn|ote\b/i;
+    var BIG_UNIT = /^\s*(?:million|billion|trillion|mm\b|m\b|b\b|bn\b)/i;
+    var HOURLY = /^\s*(?:USD\s*)?(?:\/\s*h(?:ou)?r|per\s+hour|an\s+hour|hourly|\/\s*hour)/i;
+    var YEARLY = /^\s*(?:USD\s*)?(?:\/\s*y(?:ea)?r|per\s+year|a\s+year|annually|annual|\/\s*year|per\s+annum)/i;
+
+    var candidates = [];
+    var taken = [];
+
+    function consider(min, max, start, end, raw) {
+      var after = t.slice(end, end + 30);
+      if (BIG_UNIT.test(after)) return;
+      var before = t.slice(Math.max(0, start - 120), start);
+      var hourly = HOURLY.test(after) || (/hour/i.test(before.slice(-40)) && max < 500);
+      var yearly = YEARLY.test(after);
+      if (!hourly && max < 1000) return; // a small figure with no hourly marker is not a salary
+      var annualMin = hourly ? min * HOURS_PER_YEAR : min;
+      var annualMax = hourly ? max * HOURS_PER_YEAR : max;
+      if (annualMax < 15000 || annualMax > 2000000) return;
+      var score = 0;
+      if (KEYWORD.test(before)) score += 2;
+      if (hourly || yearly) score += 1;
+      if (min !== max) score += 1;
+      candidates.push({ min: Math.round(annualMin), max: Math.round(annualMax), hourly: hourly, raw: raw.trim(), score: score, pos: start });
+    }
+
+    var m;
+    while ((m = rangeRe.exec(t)) !== null) {
+      var lo = parseMoneyValue(m[1], m[2]);
+      var hi = parseMoneyValue(m[3], m[4]);
+      if (lo == null || hi == null) continue;
+      // A k written on only one side of the range ("$70-120k", "$70k-120") applies to both.
+      if (m[4] && !m[2] && lo < 1000) lo *= 1000;
+      if (m[2] && !m[4] && hi < 1000) hi *= 1000;
+      if (hi < lo) { var tmp = lo; lo = hi; hi = tmp; }
+      taken.push([m.index, m.index + m[0].length]);
+      consider(lo, hi, m.index, m.index + m[0].length, m[0]);
+    }
+    while ((m = singleRe.exec(t)) !== null) {
+      var s = m.index, e = m.index + m[0].length;
+      var overlaps = false;
+      for (var i = 0; i < taken.length; i++) { if (s < taken[i][1] && e > taken[i][0]) { overlaps = true; break; } }
+      if (overlaps) continue;
+      var v = parseMoneyValue(m[1], m[2]);
+      if (v == null) continue;
+      // A lone figure only counts when it is clearly labeled as pay.
+      var ctxBefore = t.slice(Math.max(0, s - 120), s);
+      var ctxAfter = t.slice(e, e + 30);
+      if (!KEYWORD.test(ctxBefore) && !HOURLY.test(ctxAfter) && !YEARLY.test(ctxAfter)) continue;
+      consider(v, v, s, e, m[0]);
+    }
+
+    if (candidates.length === 0) return null;
+    candidates.sort(function (a, b) { return b.score - a.score || a.pos - b.pos; });
+    return candidates[0];
+  }
+
+  function normalizeSalaryNumber(v) {
+    if (v == null || v === "") return null;
+    if (typeof v === "number") return isFinite(v) ? v : null;
+    var str = String(v).trim();
+    var k = /k\s*$/i.test(str);
+    var n = parseFloat(str.replace(/[^0-9.]/g, ""));
+    if (isNaN(n)) return null;
+    return k ? n * 1000 : n;
+  }
+
+  function reconcileSalary(extraction, jobText) {
+    var s = extraction.salary || {};
+    var out = {
+      stated: !!s.stated,
+      min: normalizeSalaryNumber(s.min),
+      max: normalizeSalaryNumber(s.max),
+      targetMin: normalizeSalaryNumber(s.targetMin),
+      targetMax: normalizeSalaryNumber(s.targetMax),
+      source: "ai",
+      hourly: false,
+      scanRaw: ""
+    };
+    // Model returned an hourly figure without annualizing it.
+    if (out.max != null && out.max < 500) {
+      out.hourly = true;
+      ["min", "max", "targetMin", "targetMax"].forEach(function (key) {
+        if (out[key] != null) out[key] = Math.round(out[key] * HOURS_PER_YEAR);
+      });
+    }
+    if (out.min != null || out.max != null) out.stated = true;
+
+    if (out.min == null && out.max == null) {
+      var scan = scanSalaryFromText(jobText);
+      if (scan) {
+        console.warn("Salary missed by AI extraction, recovered by text scan:", scan.raw);
+        out.stated = true;
+        out.min = scan.min;
+        out.max = scan.max;
+        out.targetMin = null;
+        out.targetMax = null;
+        out.source = "text-scan";
+        out.hourly = scan.hourly;
+        out.scanRaw = scan.raw;
+      }
+    }
+    extraction.salary = out;
+    return extraction;
+  }
+
+  function salarySourceNote(salary) {
+    var notes = [];
+    if (salary.source === "text-scan") notes.push("read directly from the posting text (\"" + salary.scanRaw + "\") after the AI extraction missed it");
+    if (salary.hourly) notes.push("hourly rate annualized at " + HOURS_PER_YEAR.toLocaleString() + " hours");
+    return notes.length ? " (" + notes.join("; ") + ")" : "";
   }
 
   // Pure: extraction in, comparison plus the client-side computed score and ask out.
@@ -1782,16 +1968,19 @@
     if (STATE.minSalary != null) {
       if (!salary.stated) {
         if (STATE.rejectIfNoSalary) {
-          flags.push({ type: "salary", status: "reject", message: "No salary listed in the posting, and reject-if-missing is on." });
+          flags.push({ type: "salary", status: "reject", message: "No salary found in the posting by either the AI extraction or a direct text scan, and reject-if-missing is on." });
         } else {
-          flags.push({ type: "salary", status: "unknown", message: "Posting does not list a salary. Your minimum is $" + STATE.minSalary.toLocaleString() + "." });
+          flags.push({ type: "salary", status: "unknown", message: "No salary found in the posting by either the AI extraction or a direct text scan. Your minimum is $" + STATE.minSalary.toLocaleString() + "." });
         }
       } else {
         var postedTop = salary.max != null ? salary.max : salary.min;
-        if (postedTop != null && postedTop < STATE.minSalary) {
-          flags.push({ type: "salary", status: "reject", message: "Posted range tops out at $" + postedTop.toLocaleString() + ", below your minimum of $" + STATE.minSalary.toLocaleString() + "." });
+        var note = salarySourceNote(salary);
+        if (postedTop == null) {
+          flags.push({ type: "salary", status: "unknown", message: "Posting mentions pay but no figure could be read. Your minimum is $" + STATE.minSalary.toLocaleString() + "." });
+        } else if (postedTop < STATE.minSalary) {
+          flags.push({ type: "salary", status: "reject", message: "Posted range tops out at $" + postedTop.toLocaleString() + ", below your minimum of $" + STATE.minSalary.toLocaleString() + note + "." });
         } else {
-          flags.push({ type: "salary", status: "pass", message: "Posted salary meets your minimum of $" + STATE.minSalary.toLocaleString() + "." });
+          flags.push({ type: "salary", status: "pass", message: "Posted salary tops out at $" + postedTop.toLocaleString() + ", meeting your minimum of $" + STATE.minSalary.toLocaleString() + note + "." });
         }
       }
     }
@@ -1940,21 +2129,33 @@
   function runAnalysis() {
     var postings = filledPostings();
     if (postings.length === 0 || STATE.batchRunning) return;
-    clearReportView();
 
     if (!STATE.apiKey) {
       setStage("error-extract", "No API key saved. Open Settings and add your Anthropic API key.");
       return;
     }
 
+    // With a shortlist already on screen, new postings join it instead of replacing it,
+    // and whatever report is open stays open.
+    if (STATE.batch && STATE.batch.length > 0) {
+      runBatch(postings, true);
+      return;
+    }
+
+    clearReportView();
     if (postings.length === 1) {
       runSingle(postings[0].text);
     } else {
-      runBatch(postings);
+      runBatch(postings, false);
     }
   }
 
+  function normalizePostingText(text) {
+    return String(text || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
   function runSingle(jobText) {
+    STATE.lastSingle = null;
     STATE.batch = null;
     STATE.activeBatchId = null;
     $("ranking-card").classList.remove("show");
@@ -1972,6 +2173,14 @@
         STATE.comparisonResult = result.comparison;
         STATE.matchScore = result.matchScore;
         STATE.salaryRecommendation = result.salaryRecommendation;
+        STATE.lastSingle = {
+          jobText: jobText,
+          extraction: STATE.extractionResult,
+          comparison: result.comparison,
+          matchScore: result.matchScore,
+          salaryRecommendation: result.salaryRecommendation,
+          dealbreakers: STATE.dealbreakers
+        };
         setStage("done", "");
         renderResults();
       })
@@ -2002,11 +2211,39 @@
     return false;
   }
 
-  function runBatch(postings) {
-    STATE.batch = postings.map(function (p, i) {
+  function runBatch(postings, append) {
+    if (!append || !STATE.batch) {
+      STATE.batch = [];
+      STATE.nextBatchIndex = 1;
+      STATE.activeBatchId = null;
+    }
+    // Skip any posting already on the shortlist, or pasted twice in this round.
+    var seen = {};
+    for (var b = 0; b < STATE.batch.length; b++) seen[normalizePostingText(STATE.batch[b].jobText)] = true;
+    var skipped = 0;
+    var fresh = [];
+    for (var p = 0; p < postings.length; p++) {
+      var key = normalizePostingText(postings[p].text);
+      if (seen[key]) { skipped++; continue; }
+      seen[key] = true;
+      fresh.push(postings[p]);
+    }
+    STATE.lastSkippedDuplicates = skipped;
+
+    // The postings now live on the shortlist, so clear the inputs for the next round.
+    STATE.postings = [];
+    addPosting();
+
+    if (fresh.length === 0) {
+      setStage("error-compare", skipped === 1 ? "That posting is already on your shortlist, so nothing new was added." : "All of those postings are already on your shortlist, so nothing new was added.");
+      return;
+    }
+
+    var newItems = fresh.map(function (p) {
+      var idx = STATE.nextBatchIndex++;
       return {
-        id: "job-" + (i + 1),
-        index: i + 1,
+        id: "job-" + idx,
+        index: idx,
         jobText: p.text,
         status: "queued",
         extraction: null,
@@ -2019,20 +2256,43 @@
         coverLetter: null
       };
     });
-    STATE.activeBatchId = null;
+    // A posting already analyzed on its own carries its finished results into the
+    // shortlist rather than paying for the same analysis twice.
+    var toRun = [];
+    var single = STATE.lastSingle;
+    for (var n = 0; n < newItems.length; n++) {
+      var it = newItems[n];
+      if (single && normalizePostingText(single.jobText) === normalizePostingText(it.jobText)) {
+        it.extraction = single.extraction;
+        it.comparison = single.comparison;
+        it.matchScore = single.matchScore;
+        it.salaryRecommendation = single.salaryRecommendation;
+        it.dealbreakers = single.dealbreakers;
+        it.coverLetter = single.coverLetter || null;
+        it.status = "done";
+      } else {
+        toRun.push(it);
+      }
+      STATE.batch.push(it);
+    }
+    STATE.lastSingle = null;
     STATE.batchRunning = true;
+    STATE.confirmingClear = false;
     validateAnalyzeButton();
+    updatePostingsHint();
     $("ranking-card").classList.add("show");
     renderRanking();
     updateBatchProgress();
+    if (append) $("ranking-card").scrollIntoView({ behavior: "smooth", block: "start" });
     var batchRef = STATE.batch;
-    runPool(batchRef, CONFIG.BATCH_CONCURRENCY, function (item) {
+    runPool(toRun, CONFIG.BATCH_CONCURRENCY, function (item) {
       return processBatchItem(item, batchRef);
     }).then(function () {
       if (STATE.batch !== batchRef) return;
       STATE.batchRunning = false;
       validateAnalyzeButton();
       updateBatchProgress();
+      renderRankingTools();
     });
   }
 
@@ -2101,7 +2361,8 @@
       if (s === "done" || s === "ruled-out" || s === "error") settled++;
     }
     if (settled < total) {
-      setStage("comparing", "Analyzing postings: " + settled + " of " + total + " finished. The shortlist below re-ranks as each one completes.");
+      var dupNote = STATE.lastSkippedDuplicates > 0 ? " Skipped " + STATE.lastSkippedDuplicates + " already on the list." : "";
+      setStage("comparing", "Analyzing postings: " + settled + " of " + total + " finished. The shortlist below re-ranks as each one completes." + dupNote);
     } else {
       setStage("done", "");
     }
@@ -2186,17 +2447,105 @@
 
       if (item.status === "done") {
         html += '<div class="rank-bar"><span class="' + scoreBand(item.matchScore.percent) + '" style="width:' + item.matchScore.percent + '%"></span></div>';
-        html += '<button type="button" class="rank-action no-print" data-action="view" data-id="' + item.id + '">' + (isActive ? "Showing full report below" : "View full report") + '</button>';
+        html += '<div class="rank-actions no-print"><button type="button" class="rank-action" data-action="view" data-id="' + item.id + '">' + (isActive ? "Showing full report below" : "View full report") + '</button></div>';
       } else if (item.status === "ruled-out") {
-        html += '<button type="button" class="rank-action no-print" data-action="force" data-id="' + item.id + '">Analyze anyway</button>';
+        html += '<div class="rank-actions no-print"><button type="button" class="rank-action" data-action="force" data-id="' + item.id + '">Analyze anyway</button>' +
+          '<button type="button" class="rank-action secondary" data-action="remove" data-id="' + item.id + '">Remove</button></div>';
       } else if (item.status === "error") {
-        html += '<button type="button" class="rank-action no-print" data-action="retry" data-id="' + item.id + '">Retry this posting</button>';
+        html += '<div class="rank-actions no-print"><button type="button" class="rank-action" data-action="retry" data-id="' + item.id + '">Retry</button>' +
+          '<button type="button" class="rank-action secondary" data-action="remove" data-id="' + item.id + '">Remove</button></div>';
       } else {
         html += '<div class="rank-spacer"></div>';
       }
       html += '</li>';
     }
     list.innerHTML = html;
+    renderRankingTools();
+    renderReportHeading();
+  }
+
+  function renderRankingTools() {
+    var tools = $("ranking-tools");
+    if (!STATE.batch || STATE.batch.length === 0) { tools.innerHTML = ""; return; }
+    var ruledOut = 0;
+    for (var i = 0; i < STATE.batch.length; i++) if (STATE.batch[i].status === "ruled-out") ruledOut++;
+    var html = "";
+    if (ruledOut > 0) {
+      html += '<button type="button" class="tool-btn" data-tool="remove-ruled-out">Remove ruled out (' + ruledOut + ')</button>';
+    }
+    if (!STATE.batchRunning) {
+      html += '<button type="button" class="tool-btn' + (STATE.confirmingClear ? " confirming" : "") + '" data-tool="clear">' +
+        (STATE.confirmingClear ? "Tap again to clear the shortlist" : "Start a new shortlist") + '</button>';
+    }
+    tools.innerHTML = html;
+  }
+
+  // Keeps the open report's "Ranked #N of M" line honest as postings are added or removed.
+  function renderReportHeading() {
+    var heading = $("report-heading");
+    var item = findBatchItem(STATE.activeBatchId);
+    if (!item) { heading.classList.remove("show"); return; }
+    var rankPos = 0, done = 0;
+    var ranked = rankBatch(STATE.batch);
+    for (var i = 0; i < ranked.length; i++) {
+      if (ranked[i].status !== "done") continue;
+      done++;
+      if (ranked[i].id === item.id) rankPos = done;
+    }
+    heading.innerHTML = '<div class="eyebrow">Full report &middot; Ranked #' + rankPos + ' of ' + done + ' scored</div>' +
+      '<h2>' + escapeHtml(batchItemTitle(item)) + '</h2>' +
+      '<div class="rank-company">' + escapeHtml(batchItemSubtitle(item)) + '</div>';
+    heading.classList.add("show");
+  }
+
+  function removeBatchItems(predicate) {
+    if (!STATE.batch) return;
+    // Splice in place: in-flight runs hold a reference to this exact array.
+    for (var i = STATE.batch.length - 1; i >= 0; i--) {
+      var item = STATE.batch[i];
+      var pending = item.status === "queued" || item.status === "extracting" || item.status === "comparing";
+      if (!pending && item.id !== STATE.activeBatchId && predicate(item)) STATE.batch.splice(i, 1);
+    }
+    if (STATE.batch.length === 0) {
+      clearShortlist();
+      return;
+    }
+    renderRanking();
+  }
+
+  function clearShortlist() {
+    STATE.batch = null;
+    STATE.activeBatchId = null;
+    STATE.batchRunning = false;
+    STATE.confirmingClear = false;
+    clearReportView();
+    $("ranking-card").classList.remove("show");
+    $("ranking-list").innerHTML = "";
+    $("ranking-tools").innerHTML = "";
+    setStage("idle", "");
+    renderPostings();
+  }
+
+  var clearConfirmTimer = null;
+  function onRankingToolClick(ev) {
+    var btn = ev.target.closest ? ev.target.closest("[data-tool]") : null;
+    if (!btn) return;
+    var tool = btn.getAttribute("data-tool");
+    if (tool === "remove-ruled-out") {
+      removeBatchItems(function (item) { return item.status === "ruled-out"; });
+    } else if (tool === "clear") {
+      if (STATE.confirmingClear) {
+        clearTimeout(clearConfirmTimer);
+        clearShortlist();
+        return;
+      }
+      STATE.confirmingClear = true;
+      renderRankingTools();
+      clearConfirmTimer = setTimeout(function () {
+        STATE.confirmingClear = false;
+        renderRankingTools();
+      }, 3000);
+    }
   }
 
   function batchItemMeta(item) {
@@ -2245,22 +2594,10 @@
     STATE.coverLetter = item.coverLetter;
     if (item.coverLetter) showCoverLetter(item.coverLetter);
 
-    var rankPos = 0;
-    var ranked = rankBatch(STATE.batch);
-    for (var i = 0; i < ranked.length; i++) {
-      if (ranked[i].status === "done") rankPos++;
-      if (ranked[i].id === id) break;
-    }
-    var heading = $("report-heading");
-    heading.innerHTML = '<div class="eyebrow">Full report &middot; Ranked #' + rankPos + ' of ' + STATE.batch.length + '</div>' +
-      '<h2>' + escapeHtml(batchItemTitle(item)) + '</h2>' +
-      '<div class="rank-company">' + escapeHtml(batchItemSubtitle(item)) + '</div>';
-    heading.classList.add("show");
-
     renderDealbreakers();
     renderResults();
     renderRanking();
-    heading.scrollIntoView({ behavior: "smooth", block: "start" });
+    $("report-heading").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function onRankingClick(ev) {
@@ -2271,6 +2608,7 @@
     if (action === "view") viewBatchItem(id);
     else if (action === "force") rerunBatchItem(id, true);
     else if (action === "retry") rerunBatchItem(id, false);
+    else if (action === "remove") removeBatchItems(function (item) { return item.id === id; });
   }
 
   function toggleRow(id) {
@@ -2515,6 +2853,8 @@
     html += '  <div class="ask-num">$' + rec.suggestedAsk.toLocaleString() + '</div>';
     html += '  <div class="ask-label">Suggested Ask</div>';
     html += '  <div class="ask-detail">Based on a ' + STATE.matchScore.percent + '% weighted match, scaled between a ' + CONFIG.SALARY_MATCH_FLOOR + '% floor and ' + CONFIG.SALARY_MATCH_CEILING + '% ceiling, positioned within the ' + escapeHtml(rec.basis) + ' of <strong>$' + rec.recommendedLow.toLocaleString() + ' - $' + rec.recommendedHigh.toLocaleString() + '</strong>.</div>';
+    var sourceNote = (STATE.extractionResult && STATE.extractionResult.salary) ? salarySourceNote(STATE.extractionResult.salary) : "";
+    if (sourceNote) rangeLine += " Figures" + sourceNote + ".";
     if (rangeLine) {
       html += '  <div class="ask-detail">' + escapeHtml(rangeLine) + '</div>';
     }
@@ -2556,6 +2896,7 @@
     });
     $("add-posting-btn").addEventListener("click", addPosting);
     $("ranking-list").addEventListener("click", onRankingClick);
+    $("ranking-tools").addEventListener("click", onRankingToolClick);
     $("print-ranking-btn").addEventListener("click", printReport);
     $("role-context").addEventListener("input", function () {
       STATE.roleContext = $("role-context").value;
