@@ -662,6 +662,12 @@
   .modal-actions .save-btn { background: var(--accent); color: var(--paper); border-color: var(--accent); }
   .modal-actions .close-btn { background: transparent; color: var(--ink); }
 
+  .field-help {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
   .storage-error {
     display: none;
     background: var(--accent-dim);
@@ -771,7 +777,8 @@
   }
 
   .rank-row.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim), var(--shadow); }
-  .rank-row.status-ruled-out, .rank-row.status-error { background: var(--paper-dark); }
+  .rank-row.status-ruled-out, .rank-row.status-error, .rank-row.below-cutoff { background: var(--paper-dark); }
+  .rank-row.below-cutoff .rank-num { background: var(--muted); }
 
   .rank-top {
     display: grid;
@@ -1007,7 +1014,7 @@
       <button type="button" class="print-btn" id="print-ranking-btn">Print shortlist</button>
     </div>
     <h2 class="block-title">Ranked Shortlist</h2>
-    <p class="block-desc">Ordered by weighted match score, fewer missing required items breaking ties. Below 60% a posting likely will not clear an ATS screen. Postings that fail a deal breaker drop to the bottom and skip the comparison step entirely. Open any row for its full report.</p>
+    <p class="block-desc" id="ranking-desc">Ordered by weighted match score, fewer missing required items breaking ties. Below 60% a posting likely will not clear an ATS screen. Postings that fail a deal breaker drop to the bottom and skip the comparison step entirely. Open any row for its full report.</p>
     <div class="ranking-tools no-print" id="ranking-tools"></div>
     <ol class="ranking-list" id="ranking-list"></ol>
   </section>
@@ -1153,6 +1160,12 @@
     </div>
 
     <div class="field-group">
+      <label class="simple" for="min-match-input">Minimum Match Score to Keep (%)</label>
+      <input type="text" inputmode="numeric" id="min-match-input" placeholder="Leave blank for no cutoff">
+      <p class="field-help">Shortlisted postings scoring below this drop to the bottom with ruled out ones. Default is 80.</p>
+    </div>
+
+    <div class="field-group">
       <label class="simple" for="location-input">Your Location</label>
       <input type="text" id="location-input" placeholder="e.g. Wichita, KS">
     </div>
@@ -1182,6 +1195,7 @@
     SALARY_MATCH_FLOOR: 60,
     SALARY_MATCH_CEILING: 90,
     MAX_POSTINGS: 8,
+    DEFAULT_MIN_MATCH: 80,
     BATCH_CONCURRENCY: 2,
     STORAGE_KEY: "appaday-111-gap-analysis"
   };
@@ -1196,6 +1210,7 @@
     maxTravelPercent: null,
     requireRemote: false,
     yearsExperience: null,
+    minMatchPercent: 80,
     location: "",
     resumeText: "",
     jobText: "",
@@ -1244,6 +1259,12 @@
         STATE.maxTravelPercent = (typeof parsed.maxTravelPercent === "number") ? parsed.maxTravelPercent : null;
         STATE.requireRemote = !!parsed.requireRemote;
         STATE.yearsExperience = (typeof parsed.yearsExperience === "number") ? parsed.yearsExperience : null;
+        // Absent means never set, so use the default. An explicit null means the user turned the cutoff off.
+        if (Object.prototype.hasOwnProperty.call(parsed, "minMatchPercent")) {
+          STATE.minMatchPercent = (typeof parsed.minMatchPercent === "number") ? parsed.minMatchPercent : null;
+        } else {
+          STATE.minMatchPercent = CONFIG.DEFAULT_MIN_MATCH;
+        }
         STATE.location = parsed.location || "";
         STATE.resumeText = parsed.resumeText || "";
         STATE.strengthsListRaw = parsed.strengthsListRaw || "";
@@ -1266,6 +1287,7 @@
         maxTravelPercent: STATE.maxTravelPercent,
         requireRemote: STATE.requireRemote,
         yearsExperience: STATE.yearsExperience,
+        minMatchPercent: STATE.minMatchPercent,
         location: STATE.location,
         resumeText: STATE.resumeText
       };
@@ -1318,6 +1340,7 @@
     $("max-travel-input").value = STATE.maxTravelPercent != null ? STATE.maxTravelPercent : "";
     $("require-remote-input").checked = STATE.requireRemote;
     $("years-experience-input").value = STATE.yearsExperience != null ? STATE.yearsExperience : "";
+    $("min-match-input").value = STATE.minMatchPercent != null ? STATE.minMatchPercent : "";
     $("location-input").value = STATE.location;
     $("masked-key-display").textContent = maskKey(STATE.apiKey);
     renderStorageError();
@@ -1348,11 +1371,18 @@
     var yearsRaw = $("years-experience-input").value.trim();
     STATE.yearsExperience = yearsRaw === "" ? null : Number(yearsRaw);
     if (isNaN(STATE.yearsExperience)) STATE.yearsExperience = null;
+    var matchRaw = $("min-match-input").value.trim().replace(/%/g, "");
+    STATE.minMatchPercent = matchRaw === "" ? null : Number(matchRaw);
+    if (isNaN(STATE.minMatchPercent)) STATE.minMatchPercent = null;
+    if (STATE.minMatchPercent != null) STATE.minMatchPercent = Math.max(0, Math.min(100, STATE.minMatchPercent));
     STATE.location = $("location-input").value.trim();
     saveSettings();
     renderKeyBanner();
     renderResumeStatus();
     validateAnalyzeButton();
+    // A changed cutoff re-sorts the shortlist and score card on the spot, no rerun needed.
+    if (STATE.batch) renderRanking();
+    if (STATE.matchScore) renderScore();
     closeSettings();
   }
 
@@ -2368,11 +2398,25 @@
     }
   }
 
-  var STATUS_TIER = { done: 0, comparing: 1, extracting: 1, queued: 1, "ruled-out": 2, error: 3 };
+  function isBelowCutoff(item) {
+    return item.status === "done" && STATE.minMatchPercent != null && item.matchScore.percent < STATE.minMatchPercent;
+  }
+
+  // 0 ranked, 1 still running, 2 scored but below the cutoff, 3 ruled out, 4 failed.
+  function rankTier(item) {
+    if (item.status === "done") return isBelowCutoff(item) ? 2 : 0;
+    if (item.status === "ruled-out") return 3;
+    if (item.status === "error") return 4;
+    return 1;
+  }
+
+  function isDropped(item) {
+    return item.status === "ruled-out" || isBelowCutoff(item);
+  }
 
   function rankBatch(items) {
     return items.slice().sort(function (a, b) {
-      var ta = STATUS_TIER[a.status], tb = STATUS_TIER[b.status];
+      var ta = rankTier(a), tb = rankTier(b);
       if (ta !== tb) return ta - tb;
       if (a.status === "done") {
         if (b.matchScore.percent !== a.matchScore.percent) return b.matchScore.percent - a.matchScore.percent;
@@ -2417,10 +2461,13 @@
       var item = ranked[i];
       var pending = item.status === "queued" || item.status === "extracting" || item.status === "comparing";
       var isActive = item.id === STATE.activeBatchId;
-      html += '<li class="rank-row status-' + item.status + (pending ? " pending" : "") + (isActive ? " active" : "") + '">';
+      var below = isBelowCutoff(item);
+      html += '<li class="rank-row status-' + item.status + (below ? " below-cutoff" : "") + (pending ? " pending" : "") + (isActive ? " active" : "") + '">';
       html += '<div class="rank-top">';
 
-      if (item.status === "done") {
+      if (item.status === "done" && below) {
+        html += '<div class="rank-num" title="Below your cutoff">&darr;</div>';
+      } else if (item.status === "done") {
         rank++;
         html += '<div class="rank-num">' + rank + '</div>';
       } else if (pending) {
@@ -2447,7 +2494,8 @@
 
       if (item.status === "done") {
         html += '<div class="rank-bar"><span class="' + scoreBand(item.matchScore.percent) + '" style="width:' + item.matchScore.percent + '%"></span></div>';
-        html += '<div class="rank-actions no-print"><button type="button" class="rank-action" data-action="view" data-id="' + item.id + '">' + (isActive ? "Showing full report below" : "View full report") + '</button></div>';
+        html += '<div class="rank-actions no-print"><button type="button" class="rank-action" data-action="view" data-id="' + item.id + '">' + (isActive ? "Showing full report below" : "View full report") + '</button>' +
+          (below && !isActive ? '<button type="button" class="rank-action secondary" data-action="remove" data-id="' + item.id + '">Remove</button>' : '') + '</div>';
       } else if (item.status === "ruled-out") {
         html += '<div class="rank-actions no-print"><button type="button" class="rank-action" data-action="force" data-id="' + item.id + '">Analyze anyway</button>' +
           '<button type="button" class="rank-action secondary" data-action="remove" data-id="' + item.id + '">Remove</button></div>';
@@ -2467,17 +2515,22 @@
   function renderRankingTools() {
     var tools = $("ranking-tools");
     if (!STATE.batch || STATE.batch.length === 0) { tools.innerHTML = ""; return; }
-    var ruledOut = 0;
-    for (var i = 0; i < STATE.batch.length; i++) if (STATE.batch[i].status === "ruled-out") ruledOut++;
+    var dropped = 0;
+    for (var i = 0; i < STATE.batch.length; i++) if (isDropped(STATE.batch[i]) && STATE.batch[i].id !== STATE.activeBatchId) dropped++;
     var html = "";
-    if (ruledOut > 0) {
-      html += '<button type="button" class="tool-btn" data-tool="remove-ruled-out">Remove ruled out (' + ruledOut + ')</button>';
+    if (dropped > 0) {
+      html += '<button type="button" class="tool-btn" data-tool="remove-dropped">Remove dropped (' + dropped + ')</button>';
     }
     if (!STATE.batchRunning) {
       html += '<button type="button" class="tool-btn' + (STATE.confirmingClear ? " confirming" : "") + '" data-tool="clear">' +
         (STATE.confirmingClear ? "Tap again to clear the shortlist" : "Start a new shortlist") + '</button>';
     }
     tools.innerHTML = html;
+    $("ranking-desc").textContent = "Ordered by weighted match score, fewer missing required items breaking ties. " +
+      (STATE.minMatchPercent != null
+        ? "Anything scoring below your " + STATE.minMatchPercent + "% cutoff drops to the bottom, along with postings that fail a deal breaker, which skip the comparison step entirely. "
+        : "Below 60% a posting likely will not clear an ATS screen. Postings that fail a deal breaker drop to the bottom and skip the comparison step entirely. ") +
+      "Open any row for its full report.";
   }
 
   // Keeps the open report's "Ranked #N of M" line honest as postings are added or removed.
@@ -2485,14 +2538,17 @@
     var heading = $("report-heading");
     var item = findBatchItem(STATE.activeBatchId);
     if (!item) { heading.classList.remove("show"); return; }
-    var rankPos = 0, done = 0;
+    var rankPos = 0, kept = 0;
     var ranked = rankBatch(STATE.batch);
     for (var i = 0; i < ranked.length; i++) {
-      if (ranked[i].status !== "done") continue;
-      done++;
-      if (ranked[i].id === item.id) rankPos = done;
+      if (rankTier(ranked[i]) !== 0) continue;
+      kept++;
+      if (ranked[i].id === item.id) rankPos = kept;
     }
-    heading.innerHTML = '<div class="eyebrow">Full report &middot; Ranked #' + rankPos + ' of ' + done + ' scored</div>' +
+    var eyebrow = isBelowCutoff(item)
+      ? "Full report &middot; Below your " + STATE.minMatchPercent + "% cutoff"
+      : "Full report &middot; Ranked #" + rankPos + " of " + kept + " kept";
+    heading.innerHTML = '<div class="eyebrow">' + eyebrow + '</div>' +
       '<h2>' + escapeHtml(batchItemTitle(item)) + '</h2>' +
       '<div class="rank-company">' + escapeHtml(batchItemSubtitle(item)) + '</div>';
     heading.classList.add("show");
@@ -2531,8 +2587,8 @@
     var btn = ev.target.closest ? ev.target.closest("[data-tool]") : null;
     if (!btn) return;
     var tool = btn.getAttribute("data-tool");
-    if (tool === "remove-ruled-out") {
-      removeBatchItems(function (item) { return item.status === "ruled-out"; });
+    if (tool === "remove-dropped") {
+      removeBatchItems(isDropped);
     } else if (tool === "clear") {
       if (STATE.confirmingClear) {
         clearTimeout(clearConfirmTimer);
@@ -2564,6 +2620,7 @@
     }
 
     var bits = [];
+    if (isBelowCutoff(item)) bits.push('<span class="warn">Below your ' + STATE.minMatchPercent + '% cutoff</span>');
     var missed = item.matchScore.requiredMissed;
     bits.push(missed === 0 ? "<strong>No required items missing</strong>" : '<span class="warn">' + missed + " required item" + (missed === 1 ? "" : "s") + " missing</span>");
     if (item.salaryRecommendation) {
@@ -2623,6 +2680,9 @@
       STATE.matchScore.met + " of " + STATE.matchScore.total + " possible points earned.";
     if (STATE.matchScore.requiredMissed > 0) {
       sub += " " + STATE.matchScore.requiredMissed + " required requirement" + (STATE.matchScore.requiredMissed === 1 ? " is" : "s are") + " fully missing, weigh that before trusting the percentage alone.";
+    }
+    if (STATE.minMatchPercent != null && STATE.matchScore.percent < STATE.minMatchPercent) {
+      sub += " This is below your " + STATE.minMatchPercent + "% minimum match cutoff.";
     }
     $("score-sub").textContent = sub;
   }
