@@ -706,13 +706,205 @@
 
   .print-btn:hover { border-color: var(--accent-mid); color: var(--accent); }
 
+  .posting-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .posting-head label.field-label { margin-bottom: 0; flex: 1; }
+
+  .remove-posting-btn {
+    min-height: 44px;
+    padding: 0 6px;
+    background: none;
+    border: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .remove-posting-btn:hover { text-decoration: underline; }
+
+  .postings-list.multi textarea.jobdesc { min-height: 140px; }
+
+  .add-posting-btn {
+    width: 100%;
+    min-height: 48px;
+    border: 1.5px dashed var(--accent-mid);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--accent);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .add-posting-btn:hover:not(:disabled) { background: var(--accent-dim); }
+  .add-posting-btn:disabled { color: var(--muted); border-color: var(--rule); cursor: not-allowed; }
+
+  .postings-hint {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 8px 2px 18px;
+  }
+
+  .ranking-card { margin-top: 28px; display: none; }
+  .ranking-card.show { display: block; }
+
+  .ranking-list { list-style: none; display: grid; gap: 10px; }
+
+  .rank-row {
+    background: var(--card-bg);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 14px 16px 0;
+    overflow: hidden;
+  }
+
+  .rank-row.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim), var(--shadow); }
+  .rank-row.status-ruled-out, .rank-row.status-error { background: var(--paper-dark); }
+
+  .rank-top {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .rank-num {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    background: var(--ink);
+    color: var(--paper);
+    flex-shrink: 0;
+  }
+
+  .rank-row.status-ruled-out .rank-num, .rank-row.status-error .rank-num { background: var(--muted); }
+  .rank-row.pending .rank-num { background: transparent; border: 2px solid var(--rule); }
+  .rank-row.pending .rank-num .spinner { width: 18px; height: 18px; }
+
+  .rank-main { min-width: 0; }
+
+  .rank-title {
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .rank-company {
+    font-size: 13px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+
+  .rank-score {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(24px, 6vw, 30px);
+    line-height: 1;
+    text-align: right;
+  }
+
+  .rank-score.band-strong { color: var(--green); }
+  .rank-score.band-mid { color: var(--gold); }
+  .rank-score.band-low { color: var(--accent); }
+  .rank-score.muted { font-family: 'DM Mono', monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+
+  .rank-meta {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+
+  .rank-meta strong { color: var(--ink); font-weight: 600; }
+  .rank-meta .warn { color: var(--accent); font-weight: 500; }
+
+  .rank-bar {
+    height: 5px;
+    background: var(--rule);
+    border-radius: 999px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+
+  .rank-bar span { display: block; height: 100%; border-radius: 999px; }
+  .rank-bar .band-strong { background: var(--green); }
+  .rank-bar .band-mid { background: var(--gold); }
+  .rank-bar .band-low { background: var(--accent); }
+
+  .rank-action {
+    display: block;
+    width: calc(100% + 32px);
+    margin: 14px -16px 0;
+    min-height: 46px;
+    border: none;
+    border-top: 1px solid var(--rule);
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  .rank-action:hover { background: var(--accent-dim); }
+  .rank-row.active .rank-action { color: var(--ink); cursor: default; background: var(--accent-dim); }
+  .rank-row .rank-spacer { height: 14px; }
+
+  .report-heading {
+    display: none;
+    margin-top: 32px;
+    padding-top: 22px;
+    border-top: 2px solid var(--ink);
+    scroll-margin-top: 12px;
+  }
+
+  .report-heading.show { display: block; }
+
+  .report-heading .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+
+  .report-heading h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(20px, 5vw, 26px);
+    line-height: 1.2;
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  @media print {
+    .ranking-card.show { display: block !important; break-after: page; }
+    .rank-row { box-shadow: none; border: 1px solid #999; break-inside: avoid; }
+    .rank-row .rank-spacer { display: none; }
+  }
+
   @media print {
     .no-print { display: none !important; }
     body { background: #fff; }
     main { max-width: 100%; padding: 0 12px; }
     header { padding: 0 0 12px; border-bottom: 2px solid var(--ink); }
     .brand p.tag { display: none; }
-    .dealbreaker-card, .results { display: block !important; margin-top: 16px; }
+    .dealbreaker-card.show, .results.show { display: block !important; margin-top: 16px; }
     .print-header { display: block; margin-bottom: 16px; }
     .print-header h2 { font-family: 'DM Serif Display', serif; font-size: 18px; margin-bottom: 4px; }
     .print-header p { font-size: 12px; color: var(--muted); }
@@ -736,7 +928,7 @@
   <div class="brand">
     <a class="back" href="https://augustineiacopelli.github.io/appaday/">Back to AppADay</a>
     <h1><span class="num">111</span>Application Gap Analysis</h1>
-    <p class="tag">Paste a resume and a job posting. Claude checks every requirement against your resume and shows exactly what is missing.</p>
+    <p class="tag">Paste one job posting or several. Claude checks every requirement against your resume, shows exactly what is missing, and ranks multiple postings by match.</p>
   </div>
   <button class="gear-btn no-print" id="settings-open" type="button" aria-label="Settings">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -756,13 +948,14 @@
 
   <div class="contact-warning" id="resume-warning"></div>
 
-  <div class="field-group no-print">
-    <label class="field-label" for="job-input">Job Description <span class="count" id="job-count">0 words</span></label>
-    <textarea id="job-input" class="jobdesc" placeholder="Paste the job posting text here"></textarea>
+  <div class="no-print" id="postings-wrap">
+    <div class="postings-list" id="postings-list"></div>
+    <button type="button" class="add-posting-btn" id="add-posting-btn">+ Add another posting</button>
+    <p class="postings-hint" id="postings-hint"></p>
   </div>
 
   <div class="field-group no-print">
-    <label class="field-label" for="role-context">Role Context <span class="count">optional</span></label>
+    <label class="field-label" for="role-context">Role Context <span class="count">optional, applies to every posting</span></label>
     <input type="text" id="role-context" placeholder="e.g. internal transfer, career switch, referral from a colleague">
   </div>
 
@@ -772,6 +965,17 @@
     <div class="spinner" id="status-spinner"></div>
     <span id="status-text"></span>
   </div>
+
+  <section class="block ranking-card" id="ranking-card">
+    <div class="print-actions no-print">
+      <button type="button" class="print-btn" id="print-ranking-btn">Print shortlist</button>
+    </div>
+    <h2 class="block-title">Ranked Shortlist</h2>
+    <p class="block-desc">Ordered by weighted match score, fewer missing required items breaking ties. Below 60% a posting likely will not clear an ATS screen. Postings that fail a deal breaker drop to the bottom and skip the comparison step entirely. Open any row for its full report.</p>
+    <ol class="ranking-list" id="ranking-list"></ol>
+  </section>
+
+  <div class="report-heading" id="report-heading"></div>
 
   <section class="block dealbreaker-card" id="dealbreaker-card">
     <h2 class="block-title">Deal Breakers</h2>
@@ -940,6 +1144,8 @@
     MAX_TOKENS_COVER_LETTER: 6000,
     SALARY_MATCH_FLOOR: 60,
     SALARY_MATCH_CEILING: 90,
+    MAX_POSTINGS: 8,
+    BATCH_CONCURRENCY: 2,
     STORAGE_KEY: "appaday-111-gap-analysis"
   };
 
@@ -956,6 +1162,12 @@
     location: "",
     resumeText: "",
     jobText: "",
+    postings: [],
+    nextPostingId: 1,
+    batch: null,
+    batchRunning: false,
+    activeBatchId: null,
+    reportToken: 0,
     roleContext: "",
     extractionResult: null,
     comparisonResult: null,
@@ -1142,15 +1354,73 @@
     renderContactWarning("resume-warning", words > 0 ? contactCheck.missing : []);
   }
 
-  function updateWordCounts() {
-    STATE.jobText = $("job-input").value;
-    $("job-count").textContent = countWords(STATE.jobText) + " words";
+  function filledPostings() {
+    return STATE.postings.filter(function (p) { return p.text.trim().length > 0; });
+  }
+
+  function addPosting() {
+    if (STATE.postings.length >= CONFIG.MAX_POSTINGS) return;
+    var id = STATE.nextPostingId++;
+    STATE.postings.push({ id: id, text: "" });
+    renderPostings();
+    var ta = $("job-input-" + id);
+    if (ta && STATE.postings.length > 1) ta.focus();
+  }
+
+  function removePosting(id) {
+    STATE.postings = STATE.postings.filter(function (p) { return p.id !== id; });
+    if (STATE.postings.length === 0) STATE.postings.push({ id: STATE.nextPostingId++, text: "" });
+    renderPostings();
+  }
+
+  function renderPostings() {
+    var list = $("postings-list");
+    var multi = STATE.postings.length > 1;
+    var html = "";
+    for (var i = 0; i < STATE.postings.length; i++) {
+      var p = STATE.postings[i];
+      var label = multi ? "Job Description " + (i + 1) : "Job Description";
+      html += '<div class="field-group posting-field">';
+      html += '  <div class="posting-head">';
+      html += '    <label class="field-label" for="job-input-' + p.id + '">' + label + ' <span class="count" id="job-count-' + p.id + '">' + countWords(p.text) + ' words</span></label>';
+      if (multi) html += '    <button type="button" class="remove-posting-btn" data-remove-id="' + p.id + '" aria-label="Remove ' + label + '">Remove</button>';
+      html += '  </div>';
+      html += '  <textarea id="job-input-' + p.id + '" class="jobdesc" data-posting-id="' + p.id + '" placeholder="Paste the job posting text here"></textarea>';
+      html += '</div>';
+    }
+    list.innerHTML = html;
+    list.classList.toggle("multi", multi);
+    for (var j = 0; j < STATE.postings.length; j++) {
+      $("job-input-" + STATE.postings[j].id).value = STATE.postings[j].text;
+    }
+    var atMax = STATE.postings.length >= CONFIG.MAX_POSTINGS;
+    $("add-posting-btn").disabled = atMax;
+    $("add-posting-btn").textContent = atMax ? "Maximum of " + CONFIG.MAX_POSTINGS + " postings reached" : "+ Add another posting";
+    $("postings-hint").textContent = multi
+      ? "Each posting runs its own full analysis, so five postings cost about five single runs. Any posting that fails a deal breaker skips the comparison step and costs far less."
+      : "Add more postings to analyze up to " + CONFIG.MAX_POSTINGS + " at once and get them back ranked by match.";
+    validateAnalyzeButton();
+  }
+
+  function onPostingInput(ev) {
+    var ta = ev.target;
+    var id = parseInt(ta.getAttribute("data-posting-id"), 10);
+    if (!id) return;
+    for (var i = 0; i < STATE.postings.length; i++) {
+      if (STATE.postings[i].id === id) STATE.postings[i].text = ta.value;
+    }
+    var count = $("job-count-" + id);
+    if (count) count.textContent = countWords(ta.value) + " words";
     validateAnalyzeButton();
   }
 
   function validateAnalyzeButton() {
-    var ok = STATE.resumeText.trim().length > 0 && STATE.jobText.trim().length > 0;
-    $("analyze-btn").disabled = !ok;
+    var n = filledPostings().length;
+    var ok = STATE.resumeText.trim().length > 0 && n > 0 && !STATE.batchRunning;
+    var btn = $("analyze-btn");
+    btn.disabled = !ok;
+    if (STATE.batchRunning) btn.textContent = "Analyzing...";
+    else btn.textContent = n > 1 ? "Analyze and Rank " + n + " Postings" : "Analyze";
   }
 
   function stripCodeFences(text) {
@@ -1356,25 +1626,46 @@
     $("cover-letter-output").style.display = "none";
     setCoverLetterStage("loading", "Researching the company and drafting a first pass...");
     var tools = [{ type: "web_search_20250305", name: "web_search" }];
+    // Remember which batch posting this letter belongs to, so switching reports
+    // mid-draft never drops a letter onto the wrong job.
+    var draftedForId = STATE.activeBatchId;
+    var draftedForToken = STATE.reportToken;
     callClaude(COVER_LETTER_SYSTEM_PROMPT, buildCoverLetterUserMessage(), CONFIG.MAX_TOKENS_COVER_LETTER, tools, CONFIG.CLAUDE_MODEL_COVER_LETTER)
       .then(function (raw) {
         var text = stripCodeFences(raw);
         if (!text) {
           throw new Error("empty_response");
         }
+        var owner = findBatchItem(draftedForId);
+        if (owner) owner.coverLetter = text;
+        if (STATE.reportToken !== draftedForToken) return;
         STATE.coverLetter = text;
-        setCoverLetterStage("done", "");
-        $("cover-letter-text").textContent = text;
-        $("cover-letter-output").style.display = "block";
-        $("cover-letter-card").classList.add("has-letter");
-        btn.textContent = "Redraft Cover Letter";
-        btn.disabled = false;
+        showCoverLetter(text);
       })
       .catch(function (err) {
         console.error("Cover letter draft failed:", err);
+        if (STATE.reportToken !== draftedForToken) return;
         setCoverLetterStage("error", "Draft failed (" + err.message + "). Open the browser console for details, then try again.");
         btn.disabled = false;
       });
+  }
+
+  function showCoverLetter(text) {
+    var btn = $("cover-letter-btn");
+    setCoverLetterStage("done", "");
+    $("cover-letter-text").textContent = text;
+    $("cover-letter-output").style.display = "block";
+    $("cover-letter-card").classList.add("has-letter");
+    btn.textContent = "Redraft Cover Letter";
+    btn.disabled = false;
+  }
+
+  function resetCoverLetterUI() {
+    $("cover-letter-output").style.display = "none";
+    $("cover-letter-card").classList.remove("has-letter");
+    $("cover-letter-btn").textContent = "Draft Cover Letter";
+    $("cover-letter-btn").disabled = false;
+    setCoverLetterStage("idle", "");
   }
 
   function copyCoverLetterToClipboard() {
@@ -1399,24 +1690,23 @@
     }
   }
 
-  function extractRequirements() {
-    setStage("extracting", "Reading the job description and extracting requirements...");
-    return callClaude(EXTRACTION_SYSTEM_PROMPT, STATE.jobText, CONFIG.MAX_TOKENS_EXTRACTION, null, CONFIG.CLAUDE_MODEL_EXTRACTION)
+  // Pure: job text in, parsed extraction out. Touches no STATE, so single and
+  // batch runs can share it.
+  function extractFromPosting(jobText) {
+    return callClaude(EXTRACTION_SYSTEM_PROMPT, jobText, CONFIG.MAX_TOKENS_EXTRACTION, null, CONFIG.CLAUDE_MODEL_EXTRACTION)
       .then(function (raw) {
         var parsed = parseJsonSafe(raw);
         if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.requirements)) {
           console.error("Extraction parse failure. Reason:", parsed.error, "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
           throw new Error("parse_failure");
         }
-        STATE.extractionResult = parsed.data;
-        STATE.dealbreakers = evaluateDealbreakers(parsed.data);
-        renderDealbreakers();
+        return parsed.data;
       });
   }
 
-  function runComparison() {
-    setStage("comparing", "Comparing your resume against " + (STATE.extractionResult.requirements.length) + " requirements...");
-    var reqPayload = JSON.stringify(STATE.extractionResult.requirements);
+  // Pure: extraction in, comparison plus the client-side computed score and ask out.
+  function compareAgainstExtraction(extraction) {
+    var reqPayload = JSON.stringify(extraction.requirements);
     var userMessage = "Requirements JSON:\n" + reqPayload +
       "\n\nCandidate resume:\n" + STATE.resumeText +
       (STATE.location ? "\n\nCandidate's stated location: " + STATE.location + ". Use this fact for any requirement about location, residency, relocation, or geographic eligibility, even if the resume itself does not mention it. Do not mark a location requirement as missing solely because the resume is silent on it." : "") +
@@ -1430,9 +1720,12 @@
           throw new Error("parse_failure");
         }
         parsed.data.resumeEdits = consolidateResumeEdits(parsed.data.resumeEdits, parsed.data.gapList);
-        STATE.comparisonResult = parsed.data;
-        STATE.matchScore = computeMatchScore(parsed.data.gapList, buildImportanceMap());
-        STATE.salaryRecommendation = computeSalaryRecommendation(STATE.extractionResult.salary, STATE.matchScore.percent);
+        var score = computeMatchScore(parsed.data.gapList, buildImportanceMap(extraction));
+        return {
+          comparison: parsed.data,
+          matchScore: score,
+          salaryRecommendation: computeSalaryRecommendation(extraction.salary, score.percent)
+        };
       });
   }
 
@@ -1539,9 +1832,10 @@
     return flags;
   }
 
-  function buildImportanceMap() {
+  function buildImportanceMap(extraction) {
     var map = {};
-    var reqs = (STATE.extractionResult && STATE.extractionResult.requirements) || [];
+    var source = extraction || STATE.extractionResult;
+    var reqs = (source && source.requirements) || [];
     for (var i = 0; i < reqs.length; i++) {
       map[reqs[i].id] = reqs[i].importance === "required" ? "required" : "preferred";
     }
@@ -1626,7 +1920,8 @@
     };
   }
 
-  function runAnalysis() {
+  function clearReportView() {
+    STATE.reportToken++;
     STATE.extractionResult = null;
     STATE.comparisonResult = null;
     STATE.matchScore = null;
@@ -1638,19 +1933,45 @@
     STATE.uiExpandedRows = {};
     $("results").classList.remove("show");
     $("dealbreaker-card").classList.remove("show");
-    $("cover-letter-output").style.display = "none";
-    $("cover-letter-card").classList.remove("has-letter");
-    $("cover-letter-btn").textContent = "Draft Cover Letter";
-    setCoverLetterStage("idle", "");
+    $("report-heading").classList.remove("show");
+    resetCoverLetterUI();
+  }
+
+  function runAnalysis() {
+    var postings = filledPostings();
+    if (postings.length === 0 || STATE.batchRunning) return;
+    clearReportView();
 
     if (!STATE.apiKey) {
       setStage("error-extract", "No API key saved. Open Settings and add your Anthropic API key.");
       return;
     }
 
-    extractRequirements()
-      .then(function () { return runComparison(); })
-      .then(function () {
+    if (postings.length === 1) {
+      runSingle(postings[0].text);
+    } else {
+      runBatch(postings);
+    }
+  }
+
+  function runSingle(jobText) {
+    STATE.batch = null;
+    STATE.activeBatchId = null;
+    $("ranking-card").classList.remove("show");
+    STATE.jobText = jobText;
+    setStage("extracting", "Reading the job description and extracting requirements...");
+    extractFromPosting(jobText)
+      .then(function (extraction) {
+        STATE.extractionResult = extraction;
+        STATE.dealbreakers = evaluateDealbreakers(extraction);
+        renderDealbreakers();
+        setStage("comparing", "Comparing your resume against " + extraction.requirements.length + " requirements...");
+        return compareAgainstExtraction(extraction);
+      })
+      .then(function (result) {
+        STATE.comparisonResult = result.comparison;
+        STATE.matchScore = result.matchScore;
+        STATE.salaryRecommendation = result.salaryRecommendation;
         setStage("done", "");
         renderResults();
       })
@@ -1662,6 +1983,294 @@
           setStage("error-compare", "Comparison failed (" + err.message + "). Open the browser console for the raw response. Try again, or shorten the resume and job description.");
         }
       });
+  }
+
+  // ---------- Batch mode: several postings, ranked by match ----------
+
+  function findBatchItem(id) {
+    if (!STATE.batch || !id) return null;
+    for (var i = 0; i < STATE.batch.length; i++) {
+      if (STATE.batch[i].id === id) return STATE.batch[i];
+    }
+    return null;
+  }
+
+  function hasRejectFlag(flags) {
+    for (var i = 0; i < (flags || []).length; i++) {
+      if (flags[i].status === "reject") return true;
+    }
+    return false;
+  }
+
+  function runBatch(postings) {
+    STATE.batch = postings.map(function (p, i) {
+      return {
+        id: "job-" + (i + 1),
+        index: i + 1,
+        jobText: p.text,
+        status: "queued",
+        extraction: null,
+        comparison: null,
+        matchScore: null,
+        salaryRecommendation: null,
+        dealbreakers: [],
+        forced: false,
+        error: null,
+        coverLetter: null
+      };
+    });
+    STATE.activeBatchId = null;
+    STATE.batchRunning = true;
+    validateAnalyzeButton();
+    $("ranking-card").classList.add("show");
+    renderRanking();
+    updateBatchProgress();
+    var batchRef = STATE.batch;
+    runPool(batchRef, CONFIG.BATCH_CONCURRENCY, function (item) {
+      return processBatchItem(item, batchRef);
+    }).then(function () {
+      if (STATE.batch !== batchRef) return;
+      STATE.batchRunning = false;
+      validateAnalyzeButton();
+      updateBatchProgress();
+    });
+  }
+
+  // Simple worker pool: at most `limit` postings in flight, so a batch of eight
+  // never fires sixteen API calls at once and trips rate limits.
+  function runPool(items, limit, worker) {
+    var cursor = 0;
+    function next() {
+      if (cursor >= items.length) return Promise.resolve();
+      var item = items[cursor++];
+      return worker(item).then(next);
+    }
+    var lanes = [];
+    for (var k = 0; k < Math.min(limit, items.length); k++) lanes.push(next());
+    return Promise.all(lanes);
+  }
+
+  // Never rejects: every failure is recorded on the item so the pool keeps going.
+  function processBatchItem(item, batchRef) {
+    var stillCurrent = function () { return STATE.batch === batchRef; };
+    item.error = null;
+    item.status = item.extraction ? "comparing" : "extracting";
+    if (stillCurrent()) { renderRanking(); updateBatchProgress(); }
+
+    var start = item.extraction ? Promise.resolve(item.extraction) : extractFromPosting(item.jobText);
+    return start
+      .then(function (extraction) {
+        item.extraction = extraction;
+        item.dealbreakers = evaluateDealbreakers(extraction);
+        if (!item.forced && hasRejectFlag(item.dealbreakers)) {
+          item.status = "ruled-out";
+          return null;
+        }
+        item.status = "comparing";
+        if (stillCurrent()) renderRanking();
+        return compareAgainstExtraction(extraction).then(function (result) {
+          item.comparison = result.comparison;
+          item.matchScore = result.matchScore;
+          item.salaryRecommendation = result.salaryRecommendation;
+          item.status = "done";
+        });
+      })
+      .catch(function (err) {
+        console.error("Batch posting " + item.index + " failed:", err);
+        item.error = (item.extraction ? "Comparison" : "Extraction") + " failed (" + err.message + ")";
+        item.status = "error";
+      })
+      .then(function () {
+        if (stillCurrent()) { renderRanking(); updateBatchProgress(); }
+      });
+  }
+
+  function rerunBatchItem(id, force) {
+    var item = findBatchItem(id);
+    if (!item) return;
+    if (force) item.forced = true;
+    processBatchItem(item, STATE.batch);
+  }
+
+  function updateBatchProgress() {
+    if (!STATE.batch) return;
+    var total = STATE.batch.length;
+    var settled = 0;
+    for (var i = 0; i < total; i++) {
+      var s = STATE.batch[i].status;
+      if (s === "done" || s === "ruled-out" || s === "error") settled++;
+    }
+    if (settled < total) {
+      setStage("comparing", "Analyzing postings: " + settled + " of " + total + " finished. The shortlist below re-ranks as each one completes.");
+    } else {
+      setStage("done", "");
+    }
+  }
+
+  var STATUS_TIER = { done: 0, comparing: 1, extracting: 1, queued: 1, "ruled-out": 2, error: 3 };
+
+  function rankBatch(items) {
+    return items.slice().sort(function (a, b) {
+      var ta = STATUS_TIER[a.status], tb = STATUS_TIER[b.status];
+      if (ta !== tb) return ta - tb;
+      if (a.status === "done") {
+        if (b.matchScore.percent !== a.matchScore.percent) return b.matchScore.percent - a.matchScore.percent;
+        if (a.matchScore.requiredMissed !== b.matchScore.requiredMissed) return a.matchScore.requiredMissed - b.matchScore.requiredMissed;
+        // At an equal score, a posting that clears every deal breaker outranks one analyzed anyway.
+        var fa = hasRejectFlag(a.dealbreakers) ? 1 : 0, fb = hasRejectFlag(b.dealbreakers) ? 1 : 0;
+        if (fa !== fb) return fa - fb;
+      }
+      return a.index - b.index;
+    });
+  }
+
+  function scoreBand(percent) {
+    if (percent >= 75) return "band-strong";
+    if (percent >= CONFIG.SALARY_MATCH_FLOOR) return "band-mid";
+    return "band-low";
+  }
+
+  function batchItemTitle(item) {
+    if (item.extraction && item.extraction.role) return item.extraction.role;
+    return "Posting " + item.index;
+  }
+
+  function batchItemSubtitle(item) {
+    if (!item.extraction) {
+      var words = item.jobText.trim().split(/\s+/);
+      return words.slice(0, 9).join(" ") + (words.length > 9 ? "..." : "");
+    }
+    var parts = [];
+    if (item.extraction && item.extraction.company) parts.push(item.extraction.company);
+    parts.push("Posting " + item.index);
+    return parts.join(" \u00b7 ");
+  }
+
+  function renderRanking() {
+    var list = $("ranking-list");
+    if (!STATE.batch) { list.innerHTML = ""; return; }
+    var ranked = rankBatch(STATE.batch);
+    var html = "";
+    var rank = 0;
+    for (var i = 0; i < ranked.length; i++) {
+      var item = ranked[i];
+      var pending = item.status === "queued" || item.status === "extracting" || item.status === "comparing";
+      var isActive = item.id === STATE.activeBatchId;
+      html += '<li class="rank-row status-' + item.status + (pending ? " pending" : "") + (isActive ? " active" : "") + '">';
+      html += '<div class="rank-top">';
+
+      if (item.status === "done") {
+        rank++;
+        html += '<div class="rank-num">' + rank + '</div>';
+      } else if (pending) {
+        html += '<div class="rank-num">' + (item.status === "queued" ? "" : '<div class="spinner"></div>') + '</div>';
+      } else {
+        html += '<div class="rank-num">&times;</div>';
+      }
+
+      html += '<div class="rank-main"><div class="rank-title">' + escapeHtml(batchItemTitle(item)) + '</div>';
+      html += '<div class="rank-company">' + escapeHtml(batchItemSubtitle(item)) + '</div></div>';
+
+      if (item.status === "done") {
+        html += '<div class="rank-score ' + scoreBand(item.matchScore.percent) + '">' + item.matchScore.percent + '%</div>';
+      } else if (item.status === "ruled-out") {
+        html += '<div class="rank-score muted">Ruled out</div>';
+      } else if (item.status === "error") {
+        html += '<div class="rank-score muted">Failed</div>';
+      } else {
+        html += '<div class="rank-score muted">' + (item.status === "queued" ? "Queued" : "Working") + '</div>';
+      }
+      html += '</div>';
+
+      html += '<div class="rank-meta">' + batchItemMeta(item) + '</div>';
+
+      if (item.status === "done") {
+        html += '<div class="rank-bar"><span class="' + scoreBand(item.matchScore.percent) + '" style="width:' + item.matchScore.percent + '%"></span></div>';
+        html += '<button type="button" class="rank-action no-print" data-action="view" data-id="' + item.id + '">' + (isActive ? "Showing full report below" : "View full report") + '</button>';
+      } else if (item.status === "ruled-out") {
+        html += '<button type="button" class="rank-action no-print" data-action="force" data-id="' + item.id + '">Analyze anyway</button>';
+      } else if (item.status === "error") {
+        html += '<button type="button" class="rank-action no-print" data-action="retry" data-id="' + item.id + '">Retry this posting</button>';
+      } else {
+        html += '<div class="rank-spacer"></div>';
+      }
+      html += '</li>';
+    }
+    list.innerHTML = html;
+  }
+
+  function batchItemMeta(item) {
+    if (item.status === "queued") return "Waiting for an open slot.";
+    if (item.status === "extracting") return "Extracting requirements from the posting...";
+    if (item.status === "comparing") return "Comparing your resume against " + item.extraction.requirements.length + " requirements...";
+    if (item.status === "error") return '<span class="warn">' + escapeHtml(item.error) + '</span>';
+
+    var rejects = [], unknowns = 0;
+    for (var i = 0; i < item.dealbreakers.length; i++) {
+      if (item.dealbreakers[i].status === "reject") rejects.push(item.dealbreakers[i].message);
+      if (item.dealbreakers[i].status === "unknown") unknowns++;
+    }
+    if (item.status === "ruled-out") {
+      return '<span class="warn">' + escapeHtml(rejects.join(" ")) + '</span>';
+    }
+
+    var bits = [];
+    var missed = item.matchScore.requiredMissed;
+    bits.push(missed === 0 ? "<strong>No required items missing</strong>" : '<span class="warn">' + missed + " required item" + (missed === 1 ? "" : "s") + " missing</span>");
+    if (item.salaryRecommendation) {
+      bits.push("Ask <strong>$" + item.salaryRecommendation.suggestedAsk.toLocaleString() + "</strong>");
+    } else if (item.extraction && item.extraction.salary && !item.extraction.salary.stated) {
+      bits.push("No salary posted");
+    }
+    if (rejects.length > 0) bits.push('<span class="warn">Fails a deal breaker, analyzed anyway</span>');
+    if (unknowns > 0) bits.push(unknowns + " deal breaker" + (unknowns === 1 ? "" : "s") + " not stated");
+    return bits.join(" \u00b7 ");
+  }
+
+  function viewBatchItem(id) {
+    var item = findBatchItem(id);
+    if (!item || item.status !== "done") return;
+    if (STATE.activeBatchId === id) {
+      $("report-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    clearReportView();
+    STATE.activeBatchId = id;
+    STATE.jobText = item.jobText;
+    STATE.extractionResult = item.extraction;
+    STATE.comparisonResult = item.comparison;
+    STATE.matchScore = item.matchScore;
+    STATE.salaryRecommendation = item.salaryRecommendation;
+    STATE.dealbreakers = item.dealbreakers;
+    STATE.coverLetter = item.coverLetter;
+    if (item.coverLetter) showCoverLetter(item.coverLetter);
+
+    var rankPos = 0;
+    var ranked = rankBatch(STATE.batch);
+    for (var i = 0; i < ranked.length; i++) {
+      if (ranked[i].status === "done") rankPos++;
+      if (ranked[i].id === id) break;
+    }
+    var heading = $("report-heading");
+    heading.innerHTML = '<div class="eyebrow">Full report &middot; Ranked #' + rankPos + ' of ' + STATE.batch.length + '</div>' +
+      '<h2>' + escapeHtml(batchItemTitle(item)) + '</h2>' +
+      '<div class="rank-company">' + escapeHtml(batchItemSubtitle(item)) + '</div>';
+    heading.classList.add("show");
+
+    renderDealbreakers();
+    renderResults();
+    renderRanking();
+    heading.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function onRankingClick(ev) {
+    var btn = ev.target.closest ? ev.target.closest("[data-action]") : null;
+    if (!btn) return;
+    var id = btn.getAttribute("data-id");
+    var action = btn.getAttribute("data-action");
+    if (action === "view") viewBatchItem(id);
+    else if (action === "force") rerunBatchItem(id, true);
+    else if (action === "retry") rerunBatchItem(id, false);
   }
 
   function toggleRow(id) {
@@ -1940,7 +2549,14 @@
     renderResumeStatus();
     renderStorageError();
 
-    $("job-input").addEventListener("input", updateWordCounts);
+    $("postings-list").addEventListener("input", onPostingInput);
+    $("postings-list").addEventListener("click", function (ev) {
+      var rm = ev.target.closest ? ev.target.closest("[data-remove-id]") : null;
+      if (rm) removePosting(parseInt(rm.getAttribute("data-remove-id"), 10));
+    });
+    $("add-posting-btn").addEventListener("click", addPosting);
+    $("ranking-list").addEventListener("click", onRankingClick);
+    $("print-ranking-btn").addEventListener("click", printReport);
     $("role-context").addEventListener("input", function () {
       STATE.roleContext = $("role-context").value;
     });
@@ -1965,7 +2581,7 @@
       if (ev.target === $("settings-overlay")) closeSettings();
     });
 
-    updateWordCounts();
+    addPosting();
   }
 
   if (document.readyState === "loading") {
