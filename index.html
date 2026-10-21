@@ -1629,7 +1629,7 @@
     "Keep requirement text concise, one requirement per entry, do not merge unrelated requirements together. " +
     "For salary, read any compensation range or figure stated in the posting, set stated to false and all four numbers null if no salary appears anywhere. min and max are the full posted pay range. If the posting separately states a narrower target hiring range distinct from the full pay range (sometimes worded as 'target hiring range' or similar), put that narrower range in targetMin and targetMax, otherwise leave targetMin and targetMax null. " +
     "For travelPercent, read any stated travel expectation as a whole number percent (e.g. 'up to 25% travel' becomes 25), or null if travel is not mentioned. " +
-    "For workArrangement, classify the posting as remote only if it is explicitly fully remote with no office requirement, hybrid if it mentions a partial in-office expectation, onsite if it requires being in an office full time, or unstated if the posting never addresses location or work style. " +
+    "For workArrangement, classify the posting as remote if the candidate can do the job fully remote, whether remote is the only arrangement or one choice among several. A posting that lists office locations but also says it is open to remote employment, for example 'This role may be based in Washington, D.C.; Richmond, VA; or is open to remote employment in the continental U.S.', is remote, because the candidate may choose remote. A geographic limit on where a remote worker lives (a country, region, or set of states) still counts as remote. Classify as hybrid only when some in-office days are required of everyone, onsite only when full-time office presence is required with no remote choice, or unstated if the posting never addresses location or work style. " +
     "For minYearsRequired, read the minimum years of relevant experience explicitly stated for the role, using the lowest number in a stated range (e.g. '5-7 years' becomes 5), or null if no years figure is stated. " +
     "Keep each requirement's text under 15 words to control output length, especially on long postings with many requirements. " +
     "For requirements in the skill or certification category specifically, text must be a short canonical name only, at most 6 words, naming one specific tool, technology, language, platform, or certification. Distinguish two different list patterns and handle them differently. " +
@@ -1783,7 +1783,7 @@
           console.error("Extraction parse failure. Reason:", parsed.error, "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
           throw new Error("parse_failure");
         }
-        return reconcileSalary(parsed.data, jobText);
+        return reconcileWorkArrangement(reconcileSalary(parsed.data, jobText), jobText);
       });
   }
 
@@ -1913,6 +1913,66 @@
     return extraction;
   }
 
+  // ---------- Deterministic remote-option backstop ----------
+  // Same principle as the salary scan: whether a posting offers remote work is a
+  // plain statement in the text, so it should not hinge on the model's reading.
+  // Only promotes a posting to remote; it never demotes one the model called remote.
+
+  var REMOTE_PATTERNS = [
+    /\bopen to (?:fully )?remote\b/i,
+    /\bremote (?:employment|work|candidates|applicants|workers)? ?(?:is |are )?(?:available|considered|accepted|welcome|welcomed|possible|an option|eligible)\b/i,
+    /\b(?:on-?site|in-?office|in the office|hybrid)\s*(?:,\s*\w+\s*)?,?\s*or\s+(?:fully\s+)?remote\b/i,
+    /\b(?:fully\s+)?remote\s+or\s+(?:on-?site|in-?office|hybrid)\b/i,
+    /\b(?:fully|100%|completely|entirely)\s+remote\b/i,
+    /\bremote[- ](?:eligible|first)\b/i,
+    /\b(?:this|the) (?:is an? |role is an? |position is an? |job is an? )?remote (?:position|role|opportunity|job)\b/i,
+    /\bis an? remote (?:position|role|opportunity|job)\b/i,
+    /\b(?:work|working) remotely from anywhere\b/i,
+    /\bremote (?:within|anywhere in|in) (?:the )?(?:continental )?(?:u\.?s\.?a?|united states|us)\b/i,
+    /\blocation\s*:\s*remote\b/i,
+    /\bworkplace type\s*:\s*remote\b/i,
+    /^\s*remote\s*$/im
+  ];
+  var REMOTE_NEGATION_BEFORE = /\b(?:not|no|non|isn't|is not|cannot|can't|without|never)\b[^.;:\n]{0,20}$/i;
+  var REMOTE_NEGATION_AFTER = /^[^.;\n]{0,25}\b(?:not (?:available|an option|possible|considered|eligible|offered|permitted)|is not)\b/i;
+
+  function scanRemoteOption(text) {
+    if (!text) return null;
+    var t = String(text).replace(/[\u2010-\u2015\u2212]/g, "-").replace(/[ \t]+/g, " ");
+    for (var i = 0; i < REMOTE_PATTERNS.length; i++) {
+      var re = new RegExp(REMOTE_PATTERNS[i].source, REMOTE_PATTERNS[i].flags.indexOf("g") > -1 ? REMOTE_PATTERNS[i].flags : REMOTE_PATTERNS[i].flags + "g");
+      var m;
+      while ((m = re.exec(t)) !== null) {
+        var before = t.slice(Math.max(0, m.index - 40), m.index);
+        var after = t.slice(m.index + m[0].length, m.index + m[0].length + 40);
+        if (REMOTE_NEGATION_BEFORE.test(before) || REMOTE_NEGATION_AFTER.test(after)) continue;
+        var start = Math.max(0, t.lastIndexOf("\n", m.index) + 1, m.index - 60);
+        var endNl = t.indexOf("\n", m.index + m[0].length);
+        var end = Math.min(endNl === -1 ? t.length : endNl, m.index + m[0].length + 60);
+        return { raw: t.slice(start, end).trim() };
+      }
+    }
+    return null;
+  }
+
+  function reconcileWorkArrangement(extraction, jobText) {
+    var arrangement = extraction.workArrangement || "unstated";
+    extraction.workArrangement = arrangement;
+    extraction.remoteSource = arrangement === "remote" ? "ai" : "";
+    extraction.remoteRaw = "";
+    if (arrangement !== "remote") {
+      var scan = scanRemoteOption(jobText);
+      if (scan) {
+        console.warn("Remote option missed by AI extraction (" + arrangement + "), recovered by text scan:", scan.raw);
+        extraction.workArrangementAi = arrangement;
+        extraction.workArrangement = "remote";
+        extraction.remoteSource = "text-scan";
+        extraction.remoteRaw = scan.raw;
+      }
+    }
+    return extraction;
+  }
+
   function salarySourceNote(salary) {
     var notes = [];
     if (salary.source === "text-scan") notes.push("read directly from the posting text (\"" + salary.scanRaw + "\") after the AI extraction missed it");
@@ -2029,7 +2089,12 @@
     if (STATE.requireRemote) {
       var arrangement = extraction.workArrangement || "unstated";
       if (arrangement === "remote") {
-        flags.push({ type: "location", status: "pass", message: "Posting is fully remote, matching your requirement." });
+        if (extraction.remoteSource === "text-scan") {
+          var quote = extraction.remoteRaw.length > 140 ? extraction.remoteRaw.slice(0, 137) + "..." : extraction.remoteRaw;
+          flags.push({ type: "location", status: "pass", message: "Posting offers remote work, matching your requirement (read directly from the posting text: \"" + quote + "\", after the AI extraction classified it as " + (extraction.workArrangementAi || "unstated") + ")." });
+        } else {
+          flags.push({ type: "location", status: "pass", message: "Posting allows fully remote work, matching your requirement." });
+        }
       } else if (arrangement === "unstated") {
         flags.push({ type: "location", status: "unknown", message: "Posting does not state a work arrangement. You require remote." });
       } else {
