@@ -539,6 +539,32 @@
   .copy-skills-btn:hover { border-color: var(--accent-mid); color: var(--accent); }
 
   .cover-letter-output { margin-top: 16px; }
+  .copy-letter-top { margin: 0 0 10px; }
+
+  .cover-letter-extras {
+    display: none;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px dashed var(--rule);
+    border-radius: 10px;
+    background: var(--paper-dark);
+  }
+
+  .cover-letter-extras.show { display: block; }
+  .cover-letter-extras .sub-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .cover-letter-extras-text {
+    white-space: pre-wrap;
+    font-size: 13px;
+    color: var(--muted);
+  }
 
   .cover-letter-box {
     background: var(--card-bg);
@@ -919,6 +945,130 @@
 
   .report-heading.show { display: block; }
 
+  .report-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .status-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+  }
+
+  .status-picker-label {
+    width: 100%;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  .status-chip {
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--rule);
+    background: var(--card-bg);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .status-chip:hover { border-color: var(--accent-mid); }
+  .status-chip.on { color: var(--paper); border-color: transparent; font-weight: 700; }
+  .status-chip.on.st-not-applied { background: #67625a; }
+  .status-chip.on.st-applied { background: #8a6508; }
+  .status-chip.on.st-interviewing { background: var(--ink); }
+  .status-chip.on.st-offer { background: var(--green); }
+  .status-chip.on.st-rejected { background: #b0381a; }
+  .status-chip.on.st-withdrawn { background: #5c574e; }
+
+  .status-note {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .status-pill {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+    color: var(--paper);
+  }
+
+  .status-pill.st-not-applied { background: var(--rule); color: #5c574e; }
+  .status-pill.st-applied { background: #8a6508; }
+  .status-pill.st-interviewing { background: var(--ink); }
+  .status-pill.st-offer { background: var(--green); }
+  .status-pill.st-rejected { background: #b0381a; }
+  .status-pill.st-withdrawn { background: #5c574e; }
+
+  .library-card { margin-top: 24px; display: none; }
+  .library-card.show { display: block; }
+
+  .library-toggle {
+    width: 100%;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: var(--card-bg);
+    box-shadow: var(--shadow);
+    color: var(--ink);
+    font-family: 'DM Serif Display', serif;
+    font-size: 19px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .library-toggle .library-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--paper);
+    background: var(--ink);
+    border-radius: 999px;
+    padding: 2px 9px;
+  }
+
+  .library-toggle .expand-arrow { margin-left: auto; transition: transform 0.2s; color: var(--muted); }
+  .library-card.open .library-toggle .expand-arrow { transform: rotate(90deg); }
+
+  .library-body { display: none; margin-top: 14px; }
+  .library-card.open .library-body { display: block; }
+
+  .library-filters {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .library-filters .status-chip { flex-shrink: 0; }
+  .library-filters .status-chip.on { background: var(--ink); }
+
+  .library-list { list-style: none; display: grid; gap: 10px; }
+
+  .lib-status-line { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12.5px; color: var(--muted); }
+
+  .print-only-status { display: none; }
+
   .report-heading .eyebrow {
     font-family: 'DM Mono', monospace;
     font-size: 11px;
@@ -939,6 +1089,8 @@
     .ranking-card.show { display: block !important; break-after: page; }
     .rank-row { box-shadow: none; border: 1px solid #999; break-inside: avoid; }
     .rank-row .rank-spacer { display: none; }
+    .print-only-status { display: block !important; }
+    .cover-letter-extras { display: none !important; }
   }
 
   @media print {
@@ -1008,6 +1160,20 @@
     <div class="spinner" id="status-spinner"></div>
     <span id="status-text"></span>
   </div>
+
+  <section class="block library-card no-print" id="library-card">
+    <button type="button" class="library-toggle" id="library-toggle" aria-expanded="false">
+      <span>Saved Reports</span>
+      <span class="library-count" id="library-count">0</span>
+      <span class="expand-arrow">&#9656;</span>
+    </button>
+    <div class="library-body" id="library-body">
+      <p class="block-desc">Every finished report is saved here automatically, in this browser only. New runs are added, never written over. Open one to update its status or download it.</p>
+      <div class="library-filters" id="library-filters"></div>
+      <div class="storage-error" id="library-error"></div>
+      <ol class="library-list" id="library-list"></ol>
+    </div>
+  </section>
 
   <section class="block ranking-card" id="ranking-card">
     <div class="print-actions no-print">
@@ -1088,8 +1254,12 @@
         <span id="cover-letter-status-text"></span>
       </div>
       <div class="cover-letter-output" id="cover-letter-output" style="display: none;">
+        <button type="button" class="copy-skills-btn copy-letter-top no-print" id="copy-cover-letter-btn">Copy letter</button>
         <div class="cover-letter-box" id="cover-letter-text"></div>
-        <button type="button" class="copy-skills-btn no-print" id="copy-cover-letter-btn">Copy letter</button>
+        <div class="cover-letter-extras no-print" id="cover-letter-extras">
+          <div class="sub-label">Not copied: address block and notes from the draft</div>
+          <div class="cover-letter-extras-text" id="cover-letter-extras-text"></div>
+        </div>
       </div>
     </section>
   </div>
@@ -1222,6 +1392,13 @@
     nextBatchIndex: 1,
     lastSkippedDuplicates: 0,
     confirmingClear: false,
+    library: [],
+    libraryError: "",
+    libraryOpen: false,
+    libraryFilter: "all",
+    activeLibraryId: null,
+    reportResumeText: null,
+    confirmDeleteId: null,
     lastSingle: null,
     reportToken: 0,
     roleContext: "",
@@ -1712,6 +1889,7 @@
     // mid-draft never drops a letter onto the wrong job.
     var draftedForId = STATE.activeBatchId;
     var draftedForToken = STATE.reportToken;
+    var draftedForLibraryId = STATE.activeLibraryId;
     callClaude(COVER_LETTER_SYSTEM_PROMPT, buildCoverLetterUserMessage(), CONFIG.MAX_TOKENS_COVER_LETTER, tools, CONFIG.CLAUDE_MODEL_COVER_LETTER)
       .then(function (raw) {
         var text = stripCodeFences(raw);
@@ -1720,6 +1898,8 @@
         }
         var owner = findBatchItem(draftedForId);
         if (owner) owner.coverLetter = text;
+        var libEntry = findLibraryEntry(draftedForLibraryId);
+        if (libEntry) { libEntry.coverLetter = text; persistLibrary(); }
         else if (STATE.lastSingle && STATE.reportToken === draftedForToken) STATE.lastSingle.coverLetter = text;
         if (STATE.reportToken !== draftedForToken) return;
         STATE.coverLetter = text;
@@ -1733,10 +1913,49 @@
       });
   }
 
+  // Separates the letter itself from anything the draft wrapped around it: an
+  // address or date block before the salutation, and notes after the signature.
+  // Only the letter body is copied or exported.
+  var SALUTATION_RE = /^\s*(?:dear\b|to whom it may concern|hello\b|hi\b|greetings\b|good (?:morning|afternoon)\b)/i;
+  var CLOSING_RE = /^\s*(?:sincerely(?: yours)?|best regards|kind regards|warm(?:est)? regards|regards|respectfully(?: yours)?|yours (?:truly|sincerely)|thank you|with (?:gratitude|appreciation)|best|cordially|all the best|warmly)\s*[,.!]?\s*$/i;
+  var NOTES_RE = /^\s*(?:\*{1,2}|#{1,3}\s*|\[)?\s*(?:notes?\b|research notes|notes? (?:to|for) (?:the )?candidate|sources?\s*:|references?\s*:|-{3,}|_{3,}|\*{3,}|={3,})/i;
+
+  function splitCoverLetter(text) {
+    var lines = String(text || "").replace(/\r/g, "").split("\n");
+    var start = 0;
+    for (var i = 0; i < lines.length; i++) {
+      if (SALUTATION_RE.test(lines[i])) { start = i; break; }
+    }
+    var end = lines.length - 1;
+    var close = -1;
+    for (var j = start + 1; j < lines.length; j++) {
+      if (CLOSING_RE.test(lines[j])) { close = j; break; }
+    }
+    if (close !== -1) {
+      end = close;
+      var k = close + 1;
+      while (k < lines.length && !lines[k].trim()) k++;
+      var sig = 0;
+      while (k < lines.length && lines[k].trim() && sig < 4 && !NOTES_RE.test(lines[k])) { end = k; k++; sig++; }
+    } else {
+      for (var n = start + 1; n < lines.length; n++) {
+        if (NOTES_RE.test(lines[n])) { end = n - 1; break; }
+      }
+    }
+    var body = lines.slice(start, end + 1).join("\n").trim();
+    var before = lines.slice(0, start).join("\n").trim();
+    var after = lines.slice(end + 1).join("\n").trim();
+    if (!body) { body = String(text || "").trim(); before = ""; after = ""; }
+    return { body: body, extras: [before, after].filter(function (x) { return x; }).join("\n\n") };
+  }
+
   function showCoverLetter(text) {
     var btn = $("cover-letter-btn");
+    var parts = splitCoverLetter(text);
     setCoverLetterStage("done", "");
-    $("cover-letter-text").textContent = text;
+    $("cover-letter-text").textContent = parts.body;
+    $("cover-letter-extras-text").textContent = parts.extras;
+    $("cover-letter-extras").classList.toggle("show", !!parts.extras);
     $("cover-letter-output").style.display = "block";
     $("cover-letter-card").classList.add("has-letter");
     btn.textContent = "Redraft Cover Letter";
@@ -1764,7 +1983,7 @@
     };
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(STATE.coverLetter).then(onSuccess).catch(onFailure);
+        navigator.clipboard.writeText(splitCoverLetter(STATE.coverLetter).body).then(onSuccess).catch(onFailure);
       } else {
         onFailure();
       }
@@ -2215,9 +2434,12 @@
     STATE.coverLetterStage = "idle";
     STATE.dealbreakers = null;
     STATE.uiExpandedRows = {};
+    STATE.activeLibraryId = null;
+    STATE.reportResumeText = null;
     $("results").classList.remove("show");
     $("dealbreaker-card").classList.remove("show");
     $("report-heading").classList.remove("show");
+    $("report-heading").innerHTML = "";
     resetCoverLetterUI();
   }
 
@@ -2276,6 +2498,9 @@
           salaryRecommendation: result.salaryRecommendation,
           dealbreakers: STATE.dealbreakers
         };
+        STATE.lastSingle.libraryId = saveReportToLibrary(STATE.lastSingle);
+        STATE.activeLibraryId = STATE.lastSingle.libraryId;
+        STATE.reportResumeText = STATE.resumeText;
         setStage("done", "");
         renderResults();
       })
@@ -2348,6 +2573,7 @@
         dealbreakers: [],
         forced: false,
         error: null,
+        libraryId: null,
         coverLetter: null
       };
     });
@@ -2364,6 +2590,7 @@
         it.salaryRecommendation = single.salaryRecommendation;
         it.dealbreakers = single.dealbreakers;
         it.coverLetter = single.coverLetter || null;
+        it.libraryId = single.libraryId || null;
         it.status = "done";
       } else {
         toRun.push(it);
@@ -2428,6 +2655,7 @@
           item.matchScore = result.matchScore;
           item.salaryRecommendation = result.salaryRecommendation;
           item.status = "done";
+          item.libraryId = saveReportToLibrary(item);
         });
       })
       .catch(function (err) {
@@ -2598,25 +2826,297 @@
       "Open any row for its full report.";
   }
 
-  // Keeps the open report's "Ranked #N of M" line honest as postings are added or removed.
+  // ---------- Saved report library ----------
+  // Every finished report is saved as its own entry, newest first. Nothing is
+  // ever overwritten: rerunning the same posting adds a new entry.
+
+  var LIBRARY_KEY = "appaday-111-library";
+  var STATUSES = [
+    { key: "not-applied", label: "Not applied" },
+    { key: "applied", label: "Applied" },
+    { key: "interviewing", label: "Interviewing" },
+    { key: "offer", label: "Offer" },
+    { key: "rejected", label: "Rejected" },
+    { key: "withdrawn", label: "Withdrawn" }
+  ];
+
+  function statusLabel(key) {
+    for (var i = 0; i < STATUSES.length; i++) if (STATUSES[i].key === key) return STATUSES[i].label;
+    return "Not applied";
+  }
+
+  function formatShortDate(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function loadLibrary() {
+    try {
+      var raw = window.localStorage.getItem(LIBRARY_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      STATE.library = Array.isArray(arr) ? arr : [];
+    } catch (err) {
+      STATE.library = [];
+    }
+  }
+
+  function persistLibrary() {
+    var ok = true;
+    try {
+      window.localStorage.setItem(LIBRARY_KEY, JSON.stringify(STATE.library));
+      STATE.libraryError = "";
+    } catch (err) {
+      ok = false;
+      var full = err && (err.name === "QuotaExceededError" || err.code === 22 || /quota/i.test(err.message || ""));
+      STATE.libraryError = full
+        ? "This browser's storage is full, so the newest change was not saved. Delete a few old reports to make room."
+        : "Saving is unavailable in this browser, so reports will not survive a reload.";
+    }
+    renderLibrary();
+    return ok;
+  }
+
+  function findLibraryEntry(id) {
+    if (!id) return null;
+    for (var i = 0; i < STATE.library.length; i++) if (STATE.library[i].id === id) return STATE.library[i];
+    return null;
+  }
+
+  function saveReportToLibrary(r) {
+    var entry = {
+      id: "rpt-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7),
+      savedAt: new Date().toISOString(),
+      jobText: r.jobText,
+      extraction: r.extraction,
+      comparison: r.comparison,
+      matchScore: r.matchScore,
+      salaryRecommendation: r.salaryRecommendation,
+      dealbreakers: r.dealbreakers,
+      coverLetter: r.coverLetter || null,
+      resumeText: STATE.resumeText,
+      status: "not-applied",
+      appliedAt: null,
+      statusUpdatedAt: null
+    };
+    STATE.library.unshift(entry);
+    if (!persistLibrary()) {
+      // Keep it for this session even if storage refused it.
+      entry.unsaved = true;
+    }
+    return entry.id;
+  }
+
+  function setReportStatus(id, status) {
+    var entry = findLibraryEntry(id);
+    if (!entry) return;
+    var now = new Date().toISOString();
+    entry.status = status;
+    entry.statusUpdatedAt = now;
+    if (status === "not-applied") entry.appliedAt = null;
+    else if (status !== "withdrawn" && !entry.appliedAt) entry.appliedAt = now;
+    persistLibrary();
+    renderReportHeading();
+    if (STATE.batch) renderRanking();
+  }
+
+  function deleteLibraryEntry(id) {
+    STATE.library = STATE.library.filter(function (e) { return e.id !== id; });
+    if (STATE.batch) {
+      for (var i = 0; i < STATE.batch.length; i++) if (STATE.batch[i].libraryId === id) STATE.batch[i].libraryId = null;
+    }
+    if (STATE.lastSingle && STATE.lastSingle.libraryId === id) STATE.lastSingle.libraryId = null;
+    var wasOpen = STATE.activeLibraryId === id;
+    STATE.confirmDeleteId = null;
+    persistLibrary();
+    if (wasOpen) { closeReport(); return; }
+    renderReportHeading();
+    if (STATE.batch) renderRanking();
+  }
+
+  function statusLineHtml(entry) {
+    var html = '<span class="status-pill st-' + escapeHtml(entry.status || "not-applied") + '">' + escapeHtml(statusLabel(entry.status)) + '</span>';
+    if (entry.appliedAt && entry.status !== "not-applied") html += '<span>Applied ' + escapeHtml(formatShortDate(entry.appliedAt)) + '</span>';
+    return html;
+  }
+
+  function renderLibrary() {
+    var card = $("library-card");
+    var list = STATE.library;
+    $("library-count").textContent = list.length;
+    card.classList.toggle("show", list.length > 0 || !!STATE.libraryError);
+    card.classList.toggle("open", STATE.libraryOpen);
+    $("library-toggle").setAttribute("aria-expanded", STATE.libraryOpen ? "true" : "false");
+    var errBox = $("library-error");
+    errBox.textContent = STATE.libraryError;
+    errBox.classList.toggle("show", !!STATE.libraryError);
+
+    var counts = { all: list.length };
+    for (var c = 0; c < list.length; c++) {
+      var k = list[c].status || "not-applied";
+      counts[k] = (counts[k] || 0) + 1;
+    }
+    if (STATE.libraryFilter !== "all" && !counts[STATE.libraryFilter]) STATE.libraryFilter = "all";
+    var fhtml = '<button type="button" class="status-chip' + (STATE.libraryFilter === "all" ? " on" : "") + '" data-lib-filter="all">All (' + counts.all + ')</button>';
+    for (var f = 0; f < STATUSES.length; f++) {
+      var key = STATUSES[f].key;
+      if (!counts[key]) continue;
+      fhtml += '<button type="button" class="status-chip' + (STATE.libraryFilter === key ? " on" : "") + '" data-lib-filter="' + key + '">' + STATUSES[f].label + ' (' + counts[key] + ')</button>';
+    }
+    $("library-filters").innerHTML = fhtml;
+
+    var html = "";
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i];
+      if (STATE.libraryFilter !== "all" && (e.status || "not-applied") !== STATE.libraryFilter) continue;
+      var pct = e.matchScore ? e.matchScore.percent : 0;
+      var role = (e.extraction && e.extraction.role) || "Untitled role";
+      var company = (e.extraction && e.extraction.company) || "Company not stated";
+      var isActive = e.id === STATE.activeLibraryId;
+      var confirming = STATE.confirmDeleteId === e.id;
+      html += '<li class="rank-row lib-row' + (isActive ? " active" : "") + '">';
+      html += '<div class="rank-top" style="grid-template-columns: 1fr auto;">';
+      html += '<div class="rank-main"><div class="rank-title">' + escapeHtml(role) + '</div>';
+      html += '<div class="rank-company">' + escapeHtml(company) + ' \u00b7 Saved ' + escapeHtml(formatShortDate(e.savedAt)) + '</div></div>';
+      html += '<div class="rank-score ' + scoreBand(pct) + '">' + pct + '%</div>';
+      html += '</div>';
+      html += '<div class="lib-status-line">' + statusLineHtml(e) + '</div>';
+      html += '<div class="rank-actions"><button type="button" class="rank-action" data-lib-action="open" data-id="' + e.id + '">' + (isActive ? "Showing below" : "Open report") + '</button>' +
+        '<button type="button" class="rank-action secondary" data-lib-action="delete" data-id="' + e.id + '">' + (confirming ? "Tap again to delete" : "Delete") + '</button></div>';
+      html += '</li>';
+    }
+    $("library-list").innerHTML = html;
+  }
+
+  var deleteConfirmTimer = null;
+  function onLibraryClick(ev) {
+    var target = ev.target.closest ? ev.target.closest("[data-lib-action],[data-lib-filter]") : null;
+    if (!target) return;
+    var filter = target.getAttribute("data-lib-filter");
+    if (filter) { STATE.libraryFilter = filter; renderLibrary(); return; }
+    var id = target.getAttribute("data-id");
+    var action = target.getAttribute("data-lib-action");
+    if (action === "open") {
+      openLibraryEntry(id);
+    } else if (action === "delete") {
+      if (STATE.confirmDeleteId === id) {
+        clearTimeout(deleteConfirmTimer);
+        deleteLibraryEntry(id);
+        return;
+      }
+      STATE.confirmDeleteId = id;
+      renderLibrary();
+      clearTimeout(deleteConfirmTimer);
+      deleteConfirmTimer = setTimeout(function () { STATE.confirmDeleteId = null; renderLibrary(); }, 3000);
+    }
+  }
+
+  function showReportData(r) {
+    STATE.jobText = r.jobText;
+    STATE.extractionResult = r.extraction;
+    STATE.comparisonResult = r.comparison;
+    STATE.matchScore = r.matchScore;
+    STATE.salaryRecommendation = r.salaryRecommendation;
+    STATE.dealbreakers = r.dealbreakers;
+    STATE.coverLetter = r.coverLetter || null;
+    if (STATE.coverLetter) showCoverLetter(STATE.coverLetter);
+    renderDealbreakers();
+    renderResults();
+  }
+
+  function openLibraryEntry(id) {
+    var entry = findLibraryEntry(id);
+    if (!entry) return;
+    if (STATE.activeLibraryId === id && STATE.comparisonResult) {
+      $("report-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    clearReportView();
+    STATE.activeBatchId = null;
+    if (STATE.batch) {
+      for (var i = 0; i < STATE.batch.length; i++) if (STATE.batch[i].libraryId === id) STATE.activeBatchId = STATE.batch[i].id;
+    }
+    STATE.activeLibraryId = id;
+    STATE.reportResumeText = entry.resumeText || null;
+    showReportData(entry);
+    if (STATE.batch) renderRanking();
+    renderLibrary();
+    $("report-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function closeReport() {
+    var fromBatch = !!(STATE.batch && STATE.activeBatchId);
+    clearReportView();
+    STATE.activeBatchId = null;
+    if (STATE.batch) renderRanking();
+    renderLibrary();
+    var target = fromBatch ? $("ranking-card") : (STATE.libraryOpen ? $("library-card") : null);
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    else window.scrollTo(0, 0);
+  }
+
+  // One header for every open report, whether it came from a single run, the
+  // shortlist, or the saved library.
   function renderReportHeading() {
     var heading = $("report-heading");
+    if (!STATE.comparisonResult || !STATE.extractionResult) { heading.classList.remove("show"); heading.innerHTML = ""; return; }
     var item = findBatchItem(STATE.activeBatchId);
-    if (!item) { heading.classList.remove("show"); return; }
-    var rankPos = 0, kept = 0;
-    var ranked = rankBatch(STATE.batch);
-    for (var i = 0; i < ranked.length; i++) {
-      if (rankTier(ranked[i]) !== 0) continue;
-      kept++;
-      if (ranked[i].id === item.id) rankPos = kept;
+    var entry = findLibraryEntry(STATE.activeLibraryId);
+    var eyebrow = "Full report";
+    if (item && item.status === "done") {
+      if (isBelowCutoff(item)) {
+        eyebrow = "Full report &middot; Below your " + STATE.minMatchPercent + "% cutoff";
+      } else {
+        var rankPos = 0, kept = 0;
+        var ranked = rankBatch(STATE.batch);
+        for (var i = 0; i < ranked.length; i++) {
+          if (rankTier(ranked[i]) !== 0) continue;
+          kept++;
+          if (ranked[i].id === item.id) rankPos = kept;
+        }
+        eyebrow = "Full report &middot; Ranked #" + rankPos + " of " + kept + " kept";
+      }
+    } else if (entry) {
+      eyebrow = "Saved report &middot; " + escapeHtml(formatShortDate(entry.savedAt));
     }
-    var eyebrow = isBelowCutoff(item)
-      ? "Full report &middot; Below your " + STATE.minMatchPercent + "% cutoff"
-      : "Full report &middot; Ranked #" + rankPos + " of " + kept + " kept";
-    heading.innerHTML = '<div class="eyebrow">' + eyebrow + '</div>' +
-      '<h2>' + escapeHtml(batchItemTitle(item)) + '</h2>' +
-      '<div class="rank-company">' + escapeHtml(batchItemSubtitle(item)) + '</div>';
+    var role = STATE.extractionResult.role || "Untitled role";
+    var company = STATE.extractionResult.company || "Company not stated";
+    var html = '<div class="eyebrow">' + eyebrow + '</div>' +
+      '<h2>' + escapeHtml(role) + '</h2>' +
+      '<div class="rank-company">' + escapeHtml(company) + (item ? ' \u00b7 Posting ' + item.index : '') + '</div>';
+    html += '<div class="report-tools no-print">' +
+      '<button type="button" class="tool-btn" data-report-action="close">Close report</button>' +
+      '<button type="button" class="tool-btn" data-report-action="docx">Download Word</button>' +
+      '</div>';
+    if (entry) {
+      html += '<div class="status-picker no-print" role="group" aria-label="Application status"><span class="status-picker-label">Application status</span>';
+      for (var sIdx = 0; sIdx < STATUSES.length; sIdx++) {
+        var st = STATUSES[sIdx];
+        var on = (entry.status || "not-applied") === st.key;
+        html += '<button type="button" class="status-chip st-' + st.key + (on ? " on" : "") + '" data-status="' + st.key + '" aria-pressed="' + (on ? "true" : "false") + '">' + st.label + '</button>';
+      }
+      html += '</div>';
+      var note = "";
+      if (entry.appliedAt && entry.status !== "not-applied") note = "Applied " + formatShortDate(entry.appliedAt) + ".";
+      if (entry.statusUpdatedAt) note += (note ? " " : "") + "Status last changed " + formatShortDate(entry.statusUpdatedAt) + ".";
+      if (note) html += '<div class="status-note">' + escapeHtml(note) + '</div>';
+      html += '<div class="status-note print-only-status">Status: ' + escapeHtml(statusLabel(entry.status)) + '</div>';
+    } else {
+      html += '<div class="status-note no-print">This report could not be saved, so status tracking is unavailable for it.</div>';
+    }
+    heading.innerHTML = html;
     heading.classList.add("show");
+  }
+
+  function onReportHeadingClick(ev) {
+    var btn = ev.target.closest ? ev.target.closest("[data-report-action],[data-status]") : null;
+    if (!btn) return;
+    var status = btn.getAttribute("data-status");
+    if (status) { setReportStatus(STATE.activeLibraryId, status); return; }
+    var action = btn.getAttribute("data-report-action");
+    if (action === "close") closeReport();
+    else if (action === "docx") downloadReportDocx();
   }
 
   function removeBatchItems(predicate) {
@@ -2685,6 +3185,8 @@
     }
 
     var bits = [];
+    var libEntry = findLibraryEntry(item.libraryId);
+    if (libEntry && libEntry.status && libEntry.status !== "not-applied") bits.push('<span class="status-pill st-' + escapeHtml(libEntry.status) + '">' + escapeHtml(statusLabel(libEntry.status)) + '</span>');
     if (isBelowCutoff(item)) bits.push('<span class="warn">Below your ' + STATE.minMatchPercent + '% cutoff</span>');
     var missed = item.matchScore.requiredMissed;
     bits.push(missed === 0 ? "<strong>No required items missing</strong>" : '<span class="warn">' + missed + " required item" + (missed === 1 ? "" : "s") + " missing</span>");
@@ -2707,18 +3209,12 @@
     }
     clearReportView();
     STATE.activeBatchId = id;
-    STATE.jobText = item.jobText;
-    STATE.extractionResult = item.extraction;
-    STATE.comparisonResult = item.comparison;
-    STATE.matchScore = item.matchScore;
-    STATE.salaryRecommendation = item.salaryRecommendation;
-    STATE.dealbreakers = item.dealbreakers;
-    STATE.coverLetter = item.coverLetter;
-    if (item.coverLetter) showCoverLetter(item.coverLetter);
-
-    renderDealbreakers();
-    renderResults();
+    STATE.activeLibraryId = item.libraryId || null;
+    var entry = findLibraryEntry(item.libraryId);
+    STATE.reportResumeText = entry ? entry.resumeText : null;
+    showReportData(item);
     renderRanking();
+    renderLibrary();
     $("report-heading").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -2762,7 +3258,7 @@
     var normalize = function (s) { return (s || "").toLowerCase().replace(/\s+/g, " ").trim(); };
     var normQuote = normalize(quote);
     if (!normQuote) return null;
-    var normResume = normalize(STATE.resumeText);
+    var normResume = normalize(STATE.reportResumeText || STATE.resumeText);
     return normResume.indexOf(normQuote) !== -1;
   }
 
@@ -2891,6 +3387,274 @@
     container.innerHTML = html;
   }
 
+  // ---------- Word (.docx) export ----------
+  // Built by hand rather than with a library: a .docx is a ZIP of a few XML
+  // parts, and an uncompressed (stored) ZIP needs only a CRC32 and some headers.
+
+  var CRC_TABLE = null;
+  function crc32(bytes) {
+    if (!CRC_TABLE) {
+      CRC_TABLE = new Array(256);
+      for (var n = 0; n < 256; n++) {
+        var c = n;
+        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        CRC_TABLE[n] = c >>> 0;
+      }
+    }
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function utf8Bytes(str) {
+    if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(str);
+    var bin = unescape(encodeURIComponent(str));
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function zipStored(files) {
+    var now = new Date();
+    var dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+    var dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+    var chunks = [], central = [], offset = 0;
+    function u16(v) { return [v & 0xFF, (v >>> 8) & 0xFF]; }
+    function u32(v) { return [v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF]; }
+    for (var i = 0; i < files.length; i++) {
+      var name = utf8Bytes(files[i].name);
+      var data = utf8Bytes(files[i].text);
+      var crc = crc32(data);
+      var local = [].concat(u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(dosTime), u16(dosDate),
+        u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0));
+      chunks.push(new Uint8Array(local), name, data);
+      central.push([].concat(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(dosTime), u16(dosDate),
+        u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset)), name);
+      offset += local.length + name.length + data.length;
+    }
+    var cdStart = offset, cdSize = 0;
+    for (var j = 0; j < central.length; j += 2) {
+      chunks.push(new Uint8Array(central[j]), central[j + 1]);
+      cdSize += central[j].length + central[j + 1].length;
+    }
+    chunks.push(new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(cdSize), u32(cdStart), u16(0))));
+    var total = 0;
+    for (var t = 0; t < chunks.length; t++) total += chunks[t].length;
+    var out = new Uint8Array(total), pos = 0;
+    for (var q = 0; q < chunks.length; q++) { out.set(chunks[q], pos); pos += chunks[q].length; }
+    return out;
+  }
+
+  function xmlEsc(str) {
+    return String(str == null ? "" : str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+  }
+
+  function wRun(text, o) {
+    o = o || {};
+    var rPr = "";
+    if (o.bold) rPr += "<w:b/>";
+    if (o.italic) rPr += "<w:i/>";
+    if (o.color) rPr += '<w:color w:val="' + o.color + '"/>';
+    if (o.size) rPr += '<w:sz w:val="' + (o.size * 2) + '"/><w:szCs w:val="' + (o.size * 2) + '"/>';
+    var parts = String(text == null ? "" : text).split("\n");
+    var inner = "";
+    for (var i = 0; i < parts.length; i++) {
+      if (i > 0) inner += "<w:br/>";
+      inner += '<w:t xml:space="preserve">' + xmlEsc(parts[i]) + "</w:t>";
+    }
+    return "<w:r>" + (rPr ? "<w:rPr>" + rPr + "</w:rPr>" : "") + inner + "</w:r>";
+  }
+
+  function wPara(runs, o) {
+    o = o || {};
+    var pPr = "";
+    if (o.style) pPr += '<w:pStyle w:val="' + o.style + '"/>';
+    if (o.keepNext) pPr += "<w:keepNext/>";
+    pPr += '<w:spacing w:before="' + (o.before || 0) + '" w:after="' + (o.after != null ? o.after : 120) + '"/>';
+    return "<w:p><w:pPr>" + pPr + "</w:pPr>" + runs + "</w:p>";
+  }
+
+  function wText(text, o) { return wPara(wRun(text, o), o); }
+  function wHeading(text) { return wPara(wRun(text), { style: "Heading2", keepNext: true, before: 240, after: 80 }); }
+
+  function wTable(headers, rows, widths) {
+    var border = '<w:top w:val="single" w:sz="4" w:color="BFB8AC"/><w:left w:val="single" w:sz="4" w:color="BFB8AC"/><w:bottom w:val="single" w:sz="4" w:color="BFB8AC"/><w:right w:val="single" w:sz="4" w:color="BFB8AC"/><w:insideH w:val="single" w:sz="4" w:color="BFB8AC"/><w:insideV w:val="single" w:sz="4" w:color="BFB8AC"/>';
+    var xml = '<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>' + border + '</w:tblBorders><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="90" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="90" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>';
+    for (var g = 0; g < widths.length; g++) xml += '<w:gridCol w:w="' + widths[g] + '"/>';
+    xml += "</w:tblGrid>";
+    function cell(text, w, head) {
+      return '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/>' + (head ? '<w:shd w:val="clear" w:color="auto" w:fill="EDE8DF"/>' : "") + "</w:tcPr>" +
+        wPara(wRun(text, { bold: head, size: 10 }), { after: 0 }) + "</w:tc>";
+    }
+    xml += '<w:tr><w:trPr><w:tblHeader/></w:trPr>';
+    for (var h = 0; h < headers.length; h++) xml += cell(headers[h], widths[h], true);
+    xml += "</w:tr>";
+    for (var r = 0; r < rows.length; r++) {
+      xml += '<w:tr><w:trPr><w:cantSplit/></w:trPr>';
+      for (var c = 0; c < rows[r].length; c++) xml += cell(rows[r][c], widths[c], false);
+      xml += "</w:tr>";
+    }
+    return xml + "</w:tbl>" + wPara("", { after: 60 });
+  }
+
+  function buildReportDocxBody() {
+    var ex = STATE.extractionResult || {};
+    var cmp = STATE.comparisonResult || {};
+    var score = STATE.matchScore || { percent: 0, met: 0, total: 0, requiredMissed: 0 };
+    var entry = findLibraryEntry(STATE.activeLibraryId);
+    var b = "";
+    b += wText("Application Gap Analysis", { size: 11, color: "C8401A", bold: true, after: 40 });
+    b += wPara(wRun(ex.role || "Untitled role"), { style: "Title", after: 40 });
+    b += wText(ex.company || "Company not stated", { size: 13, color: "5C574E", after: 40 });
+    var dateLine = "Report " + (entry ? "saved " + formatShortDate(entry.savedAt) : "generated " + formatShortDate(new Date().toISOString()));
+    if (entry) {
+      dateLine += ".  Status: " + statusLabel(entry.status);
+      if (entry.appliedAt && entry.status !== "not-applied") dateLine += ", applied " + formatShortDate(entry.appliedAt);
+    }
+    b += wText(dateLine + ".", { size: 10, color: "7A7468", after: 200 });
+
+    b += wHeading("Match Score");
+    b += wText(score.percent + "% weighted match", { bold: true, size: 20, color: "C8401A", after: 60 });
+    var sub = "Required requirements count double and partial credit is half. " + score.met + " of " + score.total + " possible points earned.";
+    if (score.requiredMissed > 0) sub += " " + score.requiredMissed + " required requirement" + (score.requiredMissed === 1 ? " is" : "s are") + " fully missing.";
+    if (STATE.minMatchPercent != null && score.percent < STATE.minMatchPercent) sub += " This is below your " + STATE.minMatchPercent + "% minimum match cutoff.";
+    b += wText(sub);
+
+    var flags = STATE.dealbreakers || [];
+    if (flags.length) {
+      b += wHeading("Deal Breakers");
+      for (var f = 0; f < flags.length; f++) {
+        b += wPara(wRun(flags[f].status.toUpperCase() + ":  ", { bold: true, color: flags[f].status === "reject" ? "C8401A" : (flags[f].status === "pass" ? "2F6B3A" : "B8860B") }) + wRun(flags[f].message), { after: 80 });
+      }
+    }
+
+    var rec = STATE.salaryRecommendation;
+    if (rec) {
+      b += wHeading("Compensation");
+      b += wText("Suggested ask: $" + rec.suggestedAsk.toLocaleString(), { bold: true, size: 14, color: "B8860B", after: 60 });
+      b += wText("Positioned within the " + rec.basis + " of $" + rec.recommendedLow.toLocaleString() + " to $" + rec.recommendedHigh.toLocaleString() + ", scaled by your " + score.percent + "% match between a " + CONFIG.SALARY_MATCH_FLOOR + "% floor and " + CONFIG.SALARY_MATCH_CEILING + "% ceiling.");
+    }
+
+    var gaps = cmp.gapList || [];
+    if (gaps.length) {
+      var importance = buildImportanceMap();
+      b += wHeading("Requirement Gaps");
+      var rows = [];
+      for (var g = 0; g < gaps.length; g++) {
+        var it = gaps[g];
+        rows.push([
+          (it.requirement || "") + (importance[it.id] === "required" ? " (required)" : ""),
+          (it.status || "").toUpperCase(),
+          it.evidenceQuote ? "\"" + it.evidenceQuote + "\"" : "None found",
+          it.location || ""
+        ]);
+      }
+      b += wTable(["Requirement", "Status", "Evidence from your resume", "Where"], rows, [3000, 1050, 4130, 1900]);
+    }
+
+    var edits = cmp.resumeEdits || [];
+    if (edits.length) {
+      var reqText = {};
+      for (var q = 0; q < gaps.length; q++) reqText[gaps[q].id] = gaps[q].requirement;
+      b += wHeading("Suggested Resume Edits");
+      b += wText("Grounded in your resume. Each line of the resume is edited once, even when it serves several requirements.", { italic: true, color: "7A7468", size: 10 });
+      for (var e = 0; e < edits.length; e++) {
+        var covers = edits[e].requirementIds.map(function (id) { return reqText[id] || id; }).join("; ");
+        b += wText(edits[e].location || "Resume", { bold: true, after: 20, keepNext: true });
+        b += wText(edits[e].rewrite, { after: 20 });
+        b += wText("Covers: " + covers, { size: 9, color: "7A7468", after: 140 });
+      }
+    }
+
+    var skills = computeSkillsToSelect();
+    if (skills.length) {
+      b += wHeading("Skills to Select");
+      b += wText(skills.join(", "));
+    }
+
+    var findings = cmp.structuralFindings || [];
+    if (findings.length) {
+      b += wHeading("Structural Findings");
+      for (var sf = 0; sf < findings.length; sf++) {
+        b += wPara(wRun("[" + String(findings[sf].severity || "low").toUpperCase() + "]  ", { bold: true }) + wRun(findings[sf].issue), { after: 80 });
+      }
+    }
+
+    var leave = cmp.considerLeavingOut || [];
+    if (leave.length) {
+      b += wHeading("Consider Leaving Out");
+      for (var lo = 0; lo < leave.length; lo++) {
+        b += wPara(wRun(leave[lo].item + ".  ", { bold: true }) + wRun(leave[lo].reason), { after: 80 });
+      }
+    }
+
+    var qs = cmp.fitQuestions || [];
+    if (qs.length) {
+      b += wHeading("Interview Fit Questions");
+      for (var fq = 0; fq < qs.length; fq++) b += wText((fq + 1) + ".  " + qs[fq], { after: 80 });
+    }
+
+    if (STATE.coverLetter) {
+      b += '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+      b += wHeading("Cover Letter");
+      var paras = splitCoverLetter(STATE.coverLetter).body.split(/\n\s*\n/);
+      for (var cp = 0; cp < paras.length; cp++) b += wText(paras[cp].trim(), { after: 200 });
+    }
+
+    b += wText("Generated by AppADay 111, Application Gap Analysis.", { size: 8, color: "7A7468", before: 240 });
+    return b;
+  }
+
+  function buildReportDocx() {
+    var body = buildReportDocxBody();
+    var W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+    var documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:document ' + W + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>' + body +
+      '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>' +
+      '</w:body></w:document>';
+    var stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:styles ' + W + '>' +
+      '<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri" w:eastAsia="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="0F0E0C"/></w:rPr></w:rPrDefault>' +
+      '<w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>' +
+      '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>' +
+      '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:rPr><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia"/><w:sz w:val="44"/><w:szCs w:val="44"/></w:rPr></w:style>' +
+      '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:outlineLvl w:val="1"/><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="2" w:color="C8401A"/></w:pBdr></w:pPr><w:rPr><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia"/><w:b/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:style>' +
+      '</w:styles>';
+    var files = [
+      { name: "[Content_Types].xml", text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>' },
+      { name: "_rels/.rels", text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>' },
+      { name: "word/_rels/document.xml.rels", text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+      { name: "word/document.xml", text: documentXml },
+      { name: "word/styles.xml", text: stylesXml }
+    ];
+    return zipStored(files);
+  }
+
+  function reportFileName() {
+    var ex = STATE.extractionResult || {};
+    var clean = function (str) { return String(str || "").replace(/[^A-Za-z0-9 &.,()]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60); };
+    var d = new Date();
+    var stamp = d.getFullYear() + "." + ("0" + (d.getMonth() + 1)).slice(-2) + "." + ("0" + d.getDate()).slice(-2);
+    var parts = ["Gap Analysis", clean(ex.role), clean(ex.company), stamp].filter(function (x) { return x; });
+    return parts.join(", ") + ".docx";
+  }
+
+  function downloadReportDocx() {
+    if (!STATE.comparisonResult) return;
+    var bytes = buildReportDocx();
+    var blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = reportFileName();
+    document.body.appendChild(a);
+    a.click();
+    a.parentNode.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
   function printReport() {
     var header = $("print-header");
     var now = new Date();
@@ -2915,6 +3679,7 @@
     renderStructuralFindings();
     renderLeaveOut();
     renderFitQuestions();
+    renderReportHeading();
   }
 
   function renderSkillsToSelect() {
@@ -3022,6 +3787,15 @@
     $("add-posting-btn").addEventListener("click", addPosting);
     $("ranking-list").addEventListener("click", onRankingClick);
     $("ranking-tools").addEventListener("click", onRankingToolClick);
+    $("report-heading").addEventListener("click", onReportHeadingClick);
+    $("library-list").addEventListener("click", onLibraryClick);
+    $("library-filters").addEventListener("click", onLibraryClick);
+    $("library-toggle").addEventListener("click", function () {
+      STATE.libraryOpen = !STATE.libraryOpen;
+      renderLibrary();
+    });
+    loadLibrary();
+    renderLibrary();
     $("print-ranking-btn").addEventListener("click", printReport);
     $("role-context").addEventListener("input", function () {
       STATE.roleContext = $("role-context").value;
