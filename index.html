@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="https://augustineiacopelli.github.io/appaday/manifests/111.webmanifest">
 <script src="https://augustineiacopelli.github.io/appaday/save.js" defer></script>
+<script src="https://augustineiacopelli.github.io/appaday/keys.js" data-app="111" data-legacy-key="appaday-111-gap-analysis:apiKey" data-accent="#C8401A" defer></script>
 <title>Application Gap Analysis | AppADay 111</title>
 <meta name="description" content="Paste a resume and a job description. Claude extracts the real requirements, checks your resume against every one, and hands back a match score, a gap grid, structural flags, and interview-fit questions.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f5f0e8'/%3E%3Ctext x='32' y='47' font-family='Georgia,serif' font-size='40' text-anchor='middle' fill='%230f0e0c'%3EA%3C/text%3E%3Crect x='16' y='51' width='32' height='4' fill='%23c8401a'/%3E%3C/svg%3E">
@@ -1134,7 +1135,7 @@
 </header>
 
 <main>
-  <div class="key-banner no-print" id="key-banner">No API key saved yet. Open Settings to add your Anthropic API key before analyzing.</div>
+  <div class="key-banner no-print" id="key-banner">No API key saved yet. Open Settings to add your Claude API key before analyzing.</div>
 
   <div class="resume-status no-print" id="resume-status">
     <span id="resume-status-text">No resume saved</span>
@@ -1278,9 +1279,7 @@
     </div>
 
     <div class="field-group">
-      <label class="simple" for="api-key-input">Anthropic API Key</label>
-      <input type="password" id="api-key-input" placeholder="sk-ant-...">
-      <div class="masked-key" id="masked-key-display">No key saved</div>
+      <div id="keyMount"><div class="masked-key">The key manager is loading. If this stays, check your connection and reload.</div></div>
     </div>
 
     <div class="field-group">
@@ -1371,7 +1370,6 @@
   };
 
   var STATE = {
-    apiKey: "",
     sessionName: "",
     strengthsScope: "none",
     strengthsListRaw: "",
@@ -1428,7 +1426,6 @@
       var raw = window.localStorage.getItem(CONFIG.STORAGE_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
-        STATE.apiKey = parsed.apiKey || "";
         STATE.sessionName = parsed.sessionName || "";
         STATE.strengthsScope = parsed.strengthsScope || "none";
         STATE.minSalary = (typeof parsed.minSalary === "number") ? parsed.minSalary : null;
@@ -1455,7 +1452,6 @@
   function saveSettings() {
     try {
       var toSave = {
-        apiKey: STATE.apiKey,
         sessionName: STATE.sessionName,
         strengthsScope: STATE.strengthsScope,
         strengthsListRaw: STATE.strengthsListRaw,
@@ -1485,15 +1481,16 @@
     }
   }
 
-  function maskKey(key) {
-    if (!key) return "No key saved";
-    if (key.length <= 8) return "Key saved (hidden)";
-    return "Key saved: " + key.slice(0, 6) + "..." + key.slice(-4);
+  function hasKey() {
+    return !!(window.AppKeys && window.AppKeys.has());
   }
+
+  window.addEventListener("appaday:keychange", function () { renderKeyBanner(); });
+  document.addEventListener("DOMContentLoaded", function () { renderKeyBanner(); });
 
   function renderKeyBanner() {
     var banner = $("key-banner");
-    if (STATE.apiKey) {
+    if (hasKey()) {
       banner.classList.remove("show");
     } else {
       banner.classList.add("show");
@@ -1505,7 +1502,7 @@
     $("core-resume-count").textContent = countWords(STATE.resumeText) + " words";
     var initialCheck = checkResumeContactInfo(STATE.resumeText);
     renderContactWarning("core-resume-warning", STATE.resumeText.trim().length > 0 ? initialCheck.missing : []);
-    $("api-key-input").value = STATE.apiKey;
+    if (window.AppKeys) window.AppKeys.mountSettings($("keyMount"));
     $("session-name-input").value = STATE.sessionName;
     var radios = document.querySelectorAll('input[name="strengths-scope"]');
     for (var i = 0; i < radios.length; i++) {
@@ -1519,7 +1516,6 @@
     $("years-experience-input").value = STATE.yearsExperience != null ? STATE.yearsExperience : "";
     $("min-match-input").value = STATE.minMatchPercent != null ? STATE.minMatchPercent : "";
     $("location-input").value = STATE.location;
-    $("masked-key-display").textContent = maskKey(STATE.apiKey);
     renderStorageError();
     $("settings-overlay").classList.add("show");
   }
@@ -1530,7 +1526,6 @@
 
   function saveAndCloseSettings() {
     STATE.resumeText = $("core-resume-input").value;
-    STATE.apiKey = $("api-key-input").value.trim();
     STATE.sessionName = $("session-name-input").value.trim();
     var radios = document.querySelectorAll('input[name="strengths-scope"]');
     for (var i = 0; i < radios.length; i++) {
@@ -1699,6 +1694,16 @@
   }
 
   function callClaude(systemPrompt, userMessage, maxTokens, tools, model) {
+    if (!window.AppKeys) {
+      return Promise.reject(new Error("The key manager did not load. Check your connection and reload."));
+    }
+    return window.AppKeys.get().then(function (apiKey) {
+      if (!apiKey) throw new Error("Add your Claude API key with the Settings button first.");
+      return callClaudeKeyed(apiKey, systemPrompt, userMessage, maxTokens, tools, model);
+    });
+  }
+
+  function callClaudeKeyed(apiKey, systemPrompt, userMessage, maxTokens, tools, model) {
     var body = {
       model: model || CONFIG.CLAUDE_MODEL,
       max_tokens: maxTokens,
@@ -1710,7 +1715,7 @@
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": STATE.apiKey,
+        "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
         "anthropic-dangerous-direct-browser-access": "true"
       },
@@ -1876,8 +1881,9 @@
   }
 
   function draftCoverLetter() {
-    if (!STATE.apiKey) {
-      setCoverLetterStage("error", "No API key saved. Open Settings and add your Anthropic API key.");
+    if (!hasKey()) {
+      if (window.AppKeys) window.AppKeys.get();
+      setCoverLetterStage("error", "No API key saved. Add your Claude API key, then draft again.");
       return;
     }
     var btn = $("cover-letter-btn");
@@ -2447,8 +2453,9 @@
     var postings = filledPostings();
     if (postings.length === 0 || STATE.batchRunning) return;
 
-    if (!STATE.apiKey) {
-      setStage("error-extract", "No API key saved. Open Settings and add your Anthropic API key.");
+    if (!hasKey()) {
+      if (window.AppKeys) window.AppKeys.get();
+      setStage("error-extract", "No API key saved. Add your Claude API key, then analyze again.");
       return;
     }
 
