@@ -46,7 +46,7 @@ A contact-info check runs directly against the resume text with plain regular ex
 
 Single self-contained `index.html`. No frameworks, no build step. Google Fonts is the only external dependency. Calls the Anthropic API directly from the browser using the `anthropic-dangerous-direct-browser-access` header. API key, session name, and strengths scope preference are stored in `localStorage`, wrapped in try/catch. The ranked strengths list itself is session-only and never persisted.
 
-Extraction runs on `claude-sonnet-5`, a mostly mechanical schema-following task. Comparison and the cover letter draft run on `claude-opus-5-5`, since those carry the highest fabrication risk and the densest stack of interacting constraints (verbatim quoting, no invented claims, AND-list versus OR-list judgment, importance weighting, conservative leave-out calls).
+Extraction runs on the current Claude Sonnet model, a mostly mechanical schema-following task. Comparison and the cover letter draft run on the current Claude Opus model, since those carry the highest fabrication risk and the densest stack of interacting constraints (verbatim quoting, no invented claims, AND-list versus OR-list judgment, importance weighting, conservative leave-out calls).
 
 ## Category
 

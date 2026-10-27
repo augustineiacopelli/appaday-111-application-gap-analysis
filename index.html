@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="https://augustineiacopelli.github.io/appaday/manifests/111.webmanifest">
 <script src="https://augustineiacopelli.github.io/appaday/save.js" defer></script>
+<script src="https://augustineiacopelli.github.io/appaday/models.js"></script>
 <script src="https://augustineiacopelli.github.io/appaday/keys.js" data-app="111" data-legacy-key="appaday-111-gap-analysis:apiKey" data-accent="#C8401A" defer></script>
 <title>Application Gap Analysis | AppADay 111</title>
 <meta name="description" content="Paste a resume and a job description. Claude extracts the real requirements, checks your resume against every one, and hands back a match score, a gap grid, structural flags, and interview-fit questions.">
@@ -1353,10 +1354,10 @@
   "use strict";
 
   var CONFIG = {
-    CLAUDE_MODEL: "claude-sonnet-5",
-    CLAUDE_MODEL_EXTRACTION: "claude-sonnet-5",
-    CLAUDE_MODEL_COMPARISON: "claude-opus-5-5",
-    CLAUDE_MODEL_COVER_LETTER: "claude-opus-5-5",
+    CLAUDE_MODEL: (window.AppModels ? window.AppModels.id("sonnet") : ""),
+    CLAUDE_MODEL_EXTRACTION: (window.AppModels ? window.AppModels.id("sonnet") : ""),
+    CLAUDE_MODEL_COMPARISON: (window.AppModels ? window.AppModels.id("opus") : ""),
+    CLAUDE_MODEL_COVER_LETTER: (window.AppModels ? window.AppModels.id("opus") : ""),
     API_URL: "https://api.anthropic.com/v1/messages",
     MAX_TOKENS_EXTRACTION: 3000,
     MAX_TOKENS_COMPARISON: 8000,
@@ -3838,15 +3839,6 @@
   }
 })();
 
-async function getModel(tier = 'sonnet') {
-  try {
-    const response = await fetch('../config.json');
-    const config = await response.json();
-    return config.models[tier];
-  } catch {
-    return 'claude-sonnet-5-5';
-  }
-}
 </script>
 </body>
 </html>
