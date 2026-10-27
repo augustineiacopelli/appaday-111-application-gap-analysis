@@ -274,6 +274,8 @@
   .dealbreaker-card.show { display: block; }
 
   #salary-card { display: none; }
+  #conditions-card { display: none; }
+  #conditions-card.show { display: block; }
   #salary-card.show { display: block; }
 
   .salary-ask-box {
@@ -1220,6 +1222,12 @@
       <div class="gap-grid" id="gap-grid"></div>
     </section>
 
+    <section class="block" id="conditions-card">
+      <h2 class="block-title">Conditions to Confirm</h2>
+      <p class="block-desc">Conditions of employment you confirm on the application, such as travel or work authorization. A resume is not expected to show these, so they are not scored.</p>
+      <div class="flag-list" id="conditions-list"></div>
+    </section>
+
     <section class="block" id="skills-select-card">
       <h2 class="block-title">Skills to Select</h2>
       <p class="block-desc">Hard skills and certifications this posting asked for that your resume actually backs up, worded to paste into a Workday-style skills picker. Only requirements marked met or partial appear here, nothing is added that your resume doesn't support.</p>
@@ -1802,7 +1810,7 @@
   var EXTRACTION_SYSTEM_PROMPT = "You extract structured hiring requirements from a job description. " +
     "Respond with ONLY valid JSON, no preamble, no markdown code fences, no explanation. " +
     "The JSON shape must be exactly: {\"role\": string, \"company\": string or null, \"requirements\": " +
-    "[{\"id\": string, \"text\": string, \"category\": one of \"skill\",\"experience\",\"education\",\"certification\",\"soft_skill\", " +
+    "[{\"id\": string, \"text\": string, \"category\": one of \"skill\",\"experience\",\"education\",\"certification\",\"soft_skill\",\"condition\", " +
     "\"importance\": one of \"required\",\"preferred\"}], " +
     "\"salary\": {\"stated\": boolean, \"min\": number or null, \"max\": number or null, \"targetMin\": number or null, \"targetMax\": number or null}, " +
     "\"travelPercent\": number or null, " +
@@ -1815,6 +1823,7 @@
     "For workArrangement, classify the posting as remote if the candidate can do the job fully remote, whether remote is the only arrangement or one choice among several. A posting that lists office locations but also says it is open to remote employment, for example 'This role may be based in Washington, D.C.; Richmond, VA; or is open to remote employment in the continental U.S.', is remote, because the candidate may choose remote. A geographic limit on where a remote worker lives (a country, region, or set of states) still counts as remote. Classify as hybrid only when some in-office days are required of everyone, onsite only when full-time office presence is required with no remote choice, or unstated if the posting never addresses location or work style. " +
     "For minYearsRequired, read the minimum years of relevant experience explicitly stated for the role, using the lowest number in a stated range (e.g. '5-7 years' becomes 5), or null if no years figure is stated. " +
     "Keep each requirement's text under 15 words to control output length, especially on long postings with many requirements. " +
+    "Use the condition category for conditions of employment that an applicant simply confirms and that a resume would never be expected to show: willingness or ability to travel, authorization to work or visa sponsorship, background checks or drug screening, a driver's license or reliable transportation, physical demands such as lifting, availability for particular hours, weekends, or on-call work, willingness to relocate, and minimum age. Still list them, they are shown to the candidate to confirm, but they are never scored. " +
     "For requirements in the skill or certification category specifically, text must be a short canonical name only, at most 6 words, naming one specific tool, technology, language, platform, or certification. Distinguish two different list patterns and handle them differently. " +
     "Pattern one, an AND-list: the posting names several tools joined by 'and' where each one is clearly expected independently, for example 'proficiency in Word, Excel, and PowerPoint'. Split these into separate requirement entries, one per tool, each in the skill category. " +
     "Pattern two, an OR-list or example-list: the posting names one underlying capability and lists interchangeable examples of it, typically signaled by 'or', 'such as', 'like', or a parenthetical starting with 'e.g.', for example 'Experience with SQL or other programming/statistical software (e.g., Python, R, SAS, Stata)' or 'BI tools such as Tableau, Power BI, or Looker'. Keep this as ONE single requirement entry, do not split it, name it after the general capability plus the listed examples, for example 'SQL/Python/R/statistical software' or 'BI tool (Tableau/Power BI/Looker)'. " +
@@ -1865,7 +1874,7 @@
     var role = (STATE.extractionResult && STATE.extractionResult.role) ? STATE.extractionResult.role : "Not stated in the posting.";
     var gapSummary = "";
     if (STATE.comparisonResult && STATE.comparisonResult.gapList) {
-      var list = STATE.comparisonResult.gapList;
+      var list = scoredGapList(STATE.comparisonResult.gapList, STATE.extractionResult);
       var lines = [];
       for (var i = 0; i < list.length; i++) {
         lines.push("- " + list[i].requirement + ": " + list[i].status);
@@ -2009,7 +2018,7 @@
           console.error("Extraction parse failure. Reason:", parsed.error, "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
           throw new Error("parse_failure");
         }
-        return reconcileWorkArrangement(reconcileSalary(parsed.data, jobText), jobText);
+        return tagConditions(reconcileWorkArrangement(reconcileSalary(parsed.data, jobText), jobText));
       });
   }
 
@@ -2208,7 +2217,7 @@
 
   // Pure: extraction in, comparison plus the client-side computed score and ask out.
   function compareAgainstExtraction(extraction) {
-    var reqPayload = JSON.stringify(extraction.requirements);
+    var reqPayload = JSON.stringify(scorableRequirements(extraction));
     var userMessage = "Requirements JSON:\n" + reqPayload +
       "\n\nCandidate resume:\n" + STATE.resumeText +
       (STATE.location ? "\n\nCandidate's stated location: " + STATE.location + ". Use this fact for any requirement about location, residency, relocation, or geographic eligibility, even if the resume itself does not mention it. Do not mark a location requirement as missing solely because the resume is silent on it." : "") +
@@ -2222,7 +2231,7 @@
           throw new Error("parse_failure");
         }
         parsed.data.resumeEdits = consolidateResumeEdits(parsed.data.resumeEdits, parsed.data.gapList);
-        var score = computeMatchScore(parsed.data.gapList, buildImportanceMap(extraction));
+        var score = computeMatchScore(parsed.data.gapList, buildImportanceMap(extraction), extraction);
         return {
           comparison: parsed.data,
           matchScore: score,
@@ -2380,7 +2389,91 @@
     return out;
   }
 
-  function computeMatchScore(gapList, importanceMap) {
+  // ---------- Conditions of employment ----------
+  // Travel willingness, work authorization, background checks and the like are
+  // confirmed on the application, never shown on a resume, so they must not count
+  // against the match score. The model is asked to tag them, and this detector
+  // catches any it misses, including inside reports saved before this existed.
+
+  var CONDITION_PATTERNS = [
+    /\b(?:ability|able|willing(?:ness)?|available|availability|must be able|comfortable)\b[^.;]{0,40}\btravel/i,
+    /^\s*travel\b/i,
+    /\btravel(?:s|ing)?\s+(?:up to|approximately|about|roughly|around|as needed|required|is required|may be required|\d)/i,
+    /\b\d+\s*%\s*(?:of\s+)?(?:the\s+time\s+)?travel/i,
+    /\b(?:authoriz(?:ed|ation) to work|work authoriz\w*|legally (?:authorized|eligible)|eligib(?:le|ility) to work|employment eligibility|visa sponsorship|require sponsorship|right to work|u\.?s\.? citizen(?:ship)?\b)/i,
+    /\bbackground (?:check|screen\w*|investigation)|\bdrug (?:test\w*|screen\w*)|\bcriminal (?:history|background)|\bpre-?employment screen/i,
+    /\bdriver'?s licen[cs]e|\breliable transportation|\bvalid (?:state )?licen[cs]e to drive/i,
+    /\b(?:lift|carry|push|pull)\w*\s+(?:up to\s+)?\d+\s*(?:lbs?|pounds)|\bstand(?:ing)? for (?:long|extended)|\bphysical (?:demands|requirements)/i,
+    /\b(?:work|available|availability|able to work)\b[^.;]{0,30}\b(?:weekends?|evenings?|nights?|holidays?|on-call|overtime|shifts?)\b/i,
+    /\b(?:willing(?:ness)? to|able to|must) relocate\b|\brelocation required/i,
+    /\b(?:at least|must be) 18\b|\b18 years of age/i
+  ];
+
+  function isConditionText(text) {
+    var t = String(text || "");
+    for (var i = 0; i < CONDITION_PATTERNS.length; i++) if (CONDITION_PATTERNS[i].test(t)) return true;
+    return false;
+  }
+
+  function buildConditionIdSet(extraction) {
+    var set = {};
+    var reqs = (extraction && extraction.requirements) || [];
+    for (var i = 0; i < reqs.length; i++) {
+      if (reqs[i].category === "condition" || isConditionText(reqs[i].text)) set[reqs[i].id] = true;
+    }
+    return set;
+  }
+
+  function isConditionItem(item, conditionIds) {
+    return !!(conditionIds && conditionIds[item.id]) || isConditionText(item.requirement);
+  }
+
+  // Tags every condition in the extraction and returns only the requirements that
+  // should be scored, so the comparison call never spends tokens on them.
+  function tagConditions(extraction) {
+    var reqs = extraction.requirements || [];
+    for (var i = 0; i < reqs.length; i++) {
+      if (reqs[i].category !== "condition" && isConditionText(reqs[i].text)) {
+        reqs[i].categoryAi = reqs[i].category;
+        reqs[i].category = "condition";
+      }
+    }
+    return extraction;
+  }
+
+  function scorableRequirements(extraction) {
+    return (extraction.requirements || []).filter(function (r) { return r.category !== "condition"; });
+  }
+
+  // Everything to show under Conditions to Confirm: tagged requirements, plus any
+  // condition-like rows an older saved report scored before this existed.
+  function collectConditions(extraction, gapList) {
+    var out = [], seen = {};
+    var reqs = (extraction && extraction.requirements) || [];
+    for (var i = 0; i < reqs.length; i++) {
+      if (reqs[i].category === "condition" || isConditionText(reqs[i].text)) {
+        var key = String(reqs[i].text).toLowerCase();
+        if (!seen[key]) { seen[key] = true; out.push({ text: reqs[i].text, importance: reqs[i].importance }); }
+      }
+    }
+    var ids = buildConditionIdSet(extraction);
+    for (var j = 0; j < (gapList || []).length; j++) {
+      var g = gapList[j];
+      if (isConditionItem(g, ids)) {
+        var k2 = String(g.requirement).toLowerCase();
+        if (!seen[k2]) { seen[k2] = true; out.push({ text: g.requirement, importance: null }); }
+      }
+    }
+    return out;
+  }
+
+  function scoredGapList(gapList, extraction) {
+    var ids = buildConditionIdSet(extraction);
+    return (gapList || []).filter(function (g) { return !isConditionItem(g, ids); });
+  }
+
+  function computeMatchScore(gapList, importanceMap, extraction) {
+    gapList = scoredGapList(gapList, extraction || STATE.extractionResult);
     var total = gapList.length;
     if (total === 0) return { met: 0, total: 0, percent: 0, requiredMissed: 0 };
     var earned = 0;
@@ -2491,7 +2584,7 @@
         STATE.extractionResult = extraction;
         STATE.dealbreakers = evaluateDealbreakers(extraction);
         renderDealbreakers();
-        setStage("comparing", "Comparing your resume against " + extraction.requirements.length + " requirements...");
+        setStage("comparing", "Comparing your resume against " + scorableRequirements(extraction).length + " requirements...");
         return compareAgainstExtraction(extraction);
       })
       .then(function (result) {
@@ -2868,6 +2961,22 @@
     } catch (err) {
       STATE.library = [];
     }
+    // Rescore saved reports with the current rules (conditions of employment no
+    // longer count), so older reports match what a fresh run would say.
+    var changed = false;
+    for (var i = 0; i < STATE.library.length; i++) {
+      var e = STATE.library[i];
+      if (!e || !e.comparison || !e.extraction || !Array.isArray(e.comparison.gapList)) continue;
+      var fresh = computeMatchScore(e.comparison.gapList, buildImportanceMap(e.extraction), e.extraction);
+      if (!e.matchScore || fresh.percent !== e.matchScore.percent || fresh.total !== e.matchScore.total) {
+        e.matchScore = fresh;
+        e.salaryRecommendation = computeSalaryRecommendation(e.extraction.salary, fresh.percent);
+        changed = true;
+      }
+    }
+    if (changed) {
+      try { window.localStorage.setItem(LIBRARY_KEY, JSON.stringify(STATE.library)); } catch (err2) { /* keep in memory */ }
+    }
   }
 
   function persistLibrary() {
@@ -3180,7 +3289,7 @@
   function batchItemMeta(item) {
     if (item.status === "queued") return "Waiting for an open slot.";
     if (item.status === "extracting") return "Extracting requirements from the posting...";
-    if (item.status === "comparing") return "Comparing your resume against " + item.extraction.requirements.length + " requirements...";
+    if (item.status === "comparing") return "Comparing your resume against " + scorableRequirements(item.extraction).length + " requirements...";
     if (item.status === "error") return '<span class="warn">' + escapeHtml(item.error) + '</span>';
 
     var rejects = [], unknowns = 0;
@@ -3273,7 +3382,7 @@
   function renderGapGrid() {
     var container = $("gap-grid");
     if (!STATE.comparisonResult) { container.innerHTML = ""; return; }
-    var list = STATE.comparisonResult.gapList;
+    var list = scoredGapList(STATE.comparisonResult.gapList, STATE.extractionResult);
     if (list.length === 0) {
       container.innerHTML = '<p class="empty-note">No requirements were returned to compare.</p>';
       return;
@@ -3545,7 +3654,7 @@
       b += wText("Positioned within the " + rec.basis + " of $" + rec.recommendedLow.toLocaleString() + " to $" + rec.recommendedHigh.toLocaleString() + ", scaled by your " + score.percent + "% match between a " + CONFIG.SALARY_MATCH_FLOOR + "% floor and " + CONFIG.SALARY_MATCH_CEILING + "% ceiling.");
     }
 
-    var gaps = cmp.gapList || [];
+    var gaps = scoredGapList(cmp.gapList || [], ex);
     if (gaps.length) {
       var importance = buildImportanceMap();
       b += wHeading("Requirement Gaps");
@@ -3560,6 +3669,13 @@
         ]);
       }
       b += wTable(["Requirement", "Status", "Evidence from your resume", "Where"], rows, [3000, 1050, 4130, 1900]);
+    }
+
+    var conds = collectConditions(ex, cmp.gapList || []);
+    if (conds.length) {
+      b += wHeading("Conditions to Confirm");
+      b += wText("Confirm these on the application. A resume is not expected to show them, so they are not scored.", { italic: true, color: "7A7468", size: 10 });
+      for (var cd = 0; cd < conds.length; cd++) b += wText(conds[cd].text, { after: 60 });
     }
 
     var edits = cmp.resumeEdits || [];
@@ -3683,11 +3799,24 @@
     renderScore();
     renderSalaryRecommendation();
     renderGapGrid();
+    renderConditions();
     renderSkillsToSelect();
     renderStructuralFindings();
     renderLeaveOut();
     renderFitQuestions();
     renderReportHeading();
+  }
+
+  function renderConditions() {
+    var card = $("conditions-card");
+    var items = STATE.comparisonResult ? collectConditions(STATE.extractionResult, STATE.comparisonResult.gapList) : [];
+    if (items.length === 0) { card.classList.remove("show"); $("conditions-list").innerHTML = ""; return; }
+    var html = "";
+    for (var i = 0; i < items.length; i++) {
+      html += '<div class="flag-item sev-low"><span class="sev-tag">confirm</span><p>' + escapeHtml(items[i].text) + '</p></div>';
+    }
+    $("conditions-list").innerHTML = html;
+    card.classList.add("show");
   }
 
   function renderSkillsToSelect() {
