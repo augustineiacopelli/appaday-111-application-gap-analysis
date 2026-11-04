@@ -1367,8 +1367,12 @@
     CLAUDE_MODEL_COMPARISON: (window.AppModels ? window.AppModels.id("opus") : ""),
     CLAUDE_MODEL_COVER_LETTER: (window.AppModels ? window.AppModels.id("opus") : ""),
     API_URL: "https://api.anthropic.com/v1/messages",
-    MAX_TOKENS_EXTRACTION: 3000,
-    MAX_TOKENS_COMPARISON: 8000,
+    // Output ceilings only cost what is actually generated, so these are set with
+    // room to spare. A response that still hits the ceiling is retried once higher.
+    MAX_TOKENS_EXTRACTION: 6000,
+    MAX_TOKENS_EXTRACTION_RETRY: 12000,
+    MAX_TOKENS_COMPARISON: 16000,
+    MAX_TOKENS_COMPARISON_RETRY: 24000,
     MAX_TOKENS_COVER_LETTER: 6000,
     SALARY_MATCH_FLOOR: 60,
     SALARY_MATCH_CEILING: 90,
@@ -1419,7 +1423,8 @@
     dealbreakers: null,
     uiExpandedRows: {},
     stage: "idle",
-    storageOk: true
+    storageOk: true,
+    lastStopReason: ""
   };
 
   function $(id) { return document.getElementById(id); }
@@ -1693,11 +1698,22 @@
     return t.trim();
   }
 
+  // Accepts the JSON even when the model wraps it in a code fence or adds a
+  // sentence before or after it. Only a truly broken or cut-off object fails.
   function parseJsonSafe(text) {
     var cleaned = stripCodeFences(text);
     try {
       return { ok: true, data: JSON.parse(cleaned) };
     } catch (err) {
+      var raw = String(text || "");
+      var fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      var candidates = [];
+      if (fence) candidates.push(fence[1]);
+      var first = raw.indexOf("{"), last = raw.lastIndexOf("}");
+      if (first !== -1 && last > first) candidates.push(raw.slice(first, last + 1));
+      for (var i = 0; i < candidates.length; i++) {
+        try { return { ok: true, data: JSON.parse(candidates[i].trim()), recovered: true }; } catch (e2) { /* try next */ }
+      }
       return { ok: false, error: err.message };
     }
   }
@@ -1747,8 +1763,42 @@
         for (var j = 0; j < blocks.length; j++) { blockTypes.push(blocks[j].type); }
         console.warn("Empty text response. stop_reason:", data.stop_reason, "Content block types returned:", blockTypes);
       }
+      STATE.lastStopReason = data.stop_reason || "";
       return textOut;
     });
+  }
+
+  function describeFailure(err) {
+    var m = (err && err.message) || "unknown error";
+    if (m === "response_cut_off") return "the response ran past the length limit twice, even with a higher limit on the retry. This posting likely lists an unusually large number of requirements";
+    if (m === "unreadable_response") return "the model returned something that was not readable data, twice in a row. This is usually temporary, so Retry should work";
+    if (/^API error 529|overloaded/i.test(m)) return "Anthropic's servers are overloaded right now. Wait a minute and Retry";
+    if (/^API error 429/.test(m)) return "the API rate limit was hit. Wait a minute and Retry";
+    if (/^API error 401/.test(m)) return "the API key was rejected. Check it in Settings";
+    if (/Failed to fetch|NetworkError|network/i.test(m)) return "the connection dropped. Check your internet and Retry";
+    return m;
+  }
+
+  // Calls the model for a JSON object and checks the result. If the reply was cut
+  // off at the output ceiling, or came back unreadable, it tries once more (with a
+  // higher ceiling when it was cut off) before giving up with a specific reason.
+  function callClaudeForJson(label, systemPrompt, userMessage, maxTokens, retryTokens, model, isValid) {
+    function attempt(tokens, tryNum) {
+      return callClaude(systemPrompt, userMessage, tokens, null, model).then(function (raw) {
+        var stop = STATE.lastStopReason;
+        var parsed = parseJsonSafe(raw);
+        if (parsed.ok && parsed.data && isValid(parsed.data)) {
+          if (parsed.recovered) console.warn(label + ": JSON recovered from surrounding text.");
+          return parsed.data;
+        }
+        var truncated = stop === "max_tokens";
+        console.error(label + " parse failure (attempt " + tryNum + "). stop_reason:", stop, "Reason:", parsed.error,
+          "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
+        if (tryNum === 1) return attempt(truncated ? retryTokens : tokens, 2);
+        throw new Error(truncated ? "response_cut_off" : "unreadable_response");
+      });
+    }
+    return attempt(maxTokens, 1);
   }
 
   function strengthsLimitFor(scope) {
@@ -2011,14 +2061,10 @@
   // Pure: job text in, parsed extraction out. Touches no STATE, so single and
   // batch runs can share it.
   function extractFromPosting(jobText) {
-    return callClaude(EXTRACTION_SYSTEM_PROMPT, jobText, CONFIG.MAX_TOKENS_EXTRACTION, null, CONFIG.CLAUDE_MODEL_EXTRACTION)
-      .then(function (raw) {
-        var parsed = parseJsonSafe(raw);
-        if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.requirements)) {
-          console.error("Extraction parse failure. Reason:", parsed.error, "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
-          throw new Error("parse_failure");
-        }
-        return tagConditions(reconcileWorkArrangement(reconcileSalary(parsed.data, jobText), jobText));
+    return callClaudeForJson("Extraction", EXTRACTION_SYSTEM_PROMPT, jobText, CONFIG.MAX_TOKENS_EXTRACTION, CONFIG.MAX_TOKENS_EXTRACTION_RETRY,
+      CONFIG.CLAUDE_MODEL_EXTRACTION, function (d) { return Array.isArray(d.requirements); })
+      .then(function (data) {
+        return tagConditions(reconcileWorkArrangement(reconcileSalary(data, jobText), jobText));
       });
   }
 
@@ -2223,13 +2269,10 @@
       (STATE.location ? "\n\nCandidate's stated location: " + STATE.location + ". Use this fact for any requirement about location, residency, relocation, or geographic eligibility, even if the resume itself does not mention it. Do not mark a location requirement as missing solely because the resume is silent on it." : "") +
       (STATE.roleContext ? "\n\nRole context from candidate: " + STATE.roleContext : "") +
       buildStrengthsBlock();
-    return callClaude(COMPARISON_SYSTEM_PROMPT, userMessage, CONFIG.MAX_TOKENS_COMPARISON, null, CONFIG.CLAUDE_MODEL_COMPARISON)
-      .then(function (raw) {
-        var parsed = parseJsonSafe(raw);
-        if (!parsed.ok || !parsed.data || !Array.isArray(parsed.data.gapList)) {
-          console.error("Comparison parse failure. Reason:", parsed.error, "Response length:", raw.length, "chars. Ends with:", JSON.stringify(raw.slice(-80)), "Raw response:", raw);
-          throw new Error("parse_failure");
-        }
+    return callClaudeForJson("Comparison", COMPARISON_SYSTEM_PROMPT, userMessage, CONFIG.MAX_TOKENS_COMPARISON, CONFIG.MAX_TOKENS_COMPARISON_RETRY,
+      CONFIG.CLAUDE_MODEL_COMPARISON, function (d) { return Array.isArray(d.gapList); })
+      .then(function (data) {
+        var parsed = { data: data };
         parsed.data.resumeEdits = consolidateResumeEdits(parsed.data.resumeEdits, parsed.data.gapList);
         var score = computeMatchScore(parsed.data.gapList, buildImportanceMap(extraction), extraction);
         return {
@@ -2608,9 +2651,9 @@
       .catch(function (err) {
         console.error("Analysis failed:", err);
         if (STATE.extractionResult === null) {
-          setStage("error-extract", "Extraction failed (" + err.message + "). The job description could not be read into structured requirements. Try again or shorten the posting.");
+          setStage("error-extract", "Extraction failed: " + describeFailure(err) + ".");
         } else {
-          setStage("error-compare", "Comparison failed (" + err.message + "). Open the browser console for the raw response. Try again, or shorten the resume and job description.");
+          setStage("error-compare", "Comparison failed: " + describeFailure(err) + ".");
         }
       });
   }
@@ -2761,7 +2804,7 @@
       })
       .catch(function (err) {
         console.error("Batch posting " + item.index + " failed:", err);
-        item.error = (item.extraction ? "Comparison" : "Extraction") + " failed (" + err.message + ")";
+        item.error = (item.extraction ? "Comparison" : "Extraction") + " failed: " + describeFailure(err) + ".";
         item.status = "error";
       })
       .then(function () {

@@ -48,6 +48,8 @@ A contact-info check runs directly against the resume text with plain regular ex
 
 Single self-contained `index.html`. No frameworks, no build step. Google Fonts is the only external dependency. Calls the Anthropic API directly from the browser using the `anthropic-dangerous-direct-browser-access` header. API key, session name, and strengths scope preference are stored in `localStorage`, wrapped in try/catch. The ranked strengths list itself is session-only and never persisted.
 
+Every model call that returns data is checked before it is trusted. The reader accepts the JSON even when the model wraps it in a code fence or adds a sentence around it. If a reply was cut off at its output ceiling, the call is retried once with a higher ceiling (comparison 16,000 then 24,000 tokens, extraction 6,000 then 12,000). If a reply was otherwise unreadable, it is retried once as is. Ceilings only cost what is actually generated, so the headroom is free on normal postings. When both attempts fail, the message says why in plain words: cut off twice, unreadable twice, servers overloaded, rate limit, rejected key, or a dropped connection.
+
 Extraction runs on the current Claude Sonnet model, a mostly mechanical schema-following task. Comparison and the cover letter draft run on the current Claude Opus model, since those carry the highest fabrication risk and the densest stack of interacting constraints (verbatim quoting, no invented claims, AND-list versus OR-list judgment, importance weighting, conservative leave-out calls).
 
 ## Category
