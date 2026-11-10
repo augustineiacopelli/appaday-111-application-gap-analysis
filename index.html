@@ -1363,9 +1363,9 @@
 
   var CONFIG = {
     CLAUDE_MODEL: (window.AppModels ? window.AppModels.id("sonnet") : ""),
-    CLAUDE_MODEL_EXTRACTION: (window.AppModels ? window.AppModels.id("sonnet") : ""),
+    CLAUDE_MODEL_EXTRACTION: (window.AppModels ? window.AppModels.id("haiku") : ""),
     CLAUDE_MODEL_COMPARISON: (window.AppModels ? window.AppModels.id("opus") : ""),
-    CLAUDE_MODEL_COVER_LETTER: (window.AppModels ? window.AppModels.id("opus") : ""),
+    CLAUDE_MODEL_COVER_LETTER: (window.AppModels ? window.AppModels.id("sonnet") : ""),
     API_URL: "https://api.anthropic.com/v1/messages",
     // Output ceilings only cost what is actually generated, so these are set with
     // room to spare. A response that still hits the ceiling is retried once higher.
@@ -1374,6 +1374,8 @@
     MAX_TOKENS_COMPARISON: 16000,
     MAX_TOKENS_COMPARISON_RETRY: 24000,
     MAX_TOKENS_COVER_LETTER: 6000,
+    // Each search result is billed as input tokens, so the letter research is capped.
+    COVER_LETTER_MAX_SEARCHES: 3,
     SALARY_MATCH_FLOOR: 60,
     SALARY_MATCH_CEILING: 90,
     MAX_POSTINGS: 8,
@@ -1732,7 +1734,9 @@
     var body = {
       model: model || CONFIG.CLAUDE_MODEL,
       max_tokens: maxTokens,
-      system: systemPrompt,
+      // Cached so batch runs and retries reread the prompt at the cached rate.
+      // Below the model's minimum cacheable length the API simply skips caching.
+      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userMessage }]
     };
     if (tools) body.tools = tools;
@@ -1753,6 +1757,7 @@
       }
       return res.json();
     }).then(function (data) {
+      if (data.usage) console.info("Claude usage (" + body.model + "):", data.usage);
       var blocks = data.content || [];
       var textOut = "";
       for (var i = 0; i < blocks.length; i++) {
@@ -1950,7 +1955,7 @@
     btn.disabled = true;
     $("cover-letter-output").style.display = "none";
     setCoverLetterStage("loading", "Researching the company and drafting a first pass...");
-    var tools = [{ type: "web_search_20250305", name: "web_search" }];
+    var tools = [{ type: "web_search_20250305", name: "web_search", max_uses: CONFIG.COVER_LETTER_MAX_SEARCHES }];
     // Remember which batch posting this letter belongs to, so switching reports
     // mid-draft never drops a letter onto the wrong job.
     var draftedForId = STATE.activeBatchId;
@@ -2264,11 +2269,16 @@
   // Pure: extraction in, comparison plus the client-side computed score and ask out.
   function compareAgainstExtraction(extraction) {
     var reqPayload = JSON.stringify(scorableRequirements(extraction));
-    var userMessage = "Requirements JSON:\n" + reqPayload +
-      "\n\nCandidate resume:\n" + STATE.resumeText +
+    // Everything that stays the same across a batch goes first and is cached, so
+    // later postings reread the resume at the cached rate. Requirements go last.
+    var candidateBlock = "Candidate resume:\n" + STATE.resumeText +
       (STATE.location ? "\n\nCandidate's stated location: " + STATE.location + ". Use this fact for any requirement about location, residency, relocation, or geographic eligibility, even if the resume itself does not mention it. Do not mark a location requirement as missing solely because the resume is silent on it." : "") +
       (STATE.roleContext ? "\n\nRole context from candidate: " + STATE.roleContext : "") +
       buildStrengthsBlock();
+    var userMessage = [
+      { type: "text", text: candidateBlock, cache_control: { type: "ephemeral" } },
+      { type: "text", text: "Requirements JSON for this posting:\n" + reqPayload }
+    ];
     return callClaudeForJson("Comparison", COMPARISON_SYSTEM_PROMPT, userMessage, CONFIG.MAX_TOKENS_COMPARISON, CONFIG.MAX_TOKENS_COMPARISON_RETRY,
       CONFIG.CLAUDE_MODEL_COMPARISON, function (d) { return Array.isArray(d.gapList); })
       .then(function (data) {
