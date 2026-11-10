@@ -1733,7 +1733,7 @@
   function callClaudeKeyed(apiKey, systemPrompt, userMessage, maxTokens, tools, model) {
     var body = {
       model: model || CONFIG.CLAUDE_MODEL,
-      max_tokens: maxTokens,
+      max_tokens: maxTokens, thinking: (window.AppModels && window.AppModels.thinking ? window.AppModels.thinking((model || CONFIG.CLAUDE_MODEL)) : undefined),
       // Cached so batch runs and retries reread the prompt at the cached rate.
       // Below the model's minimum cacheable length the API simply skips caching.
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
